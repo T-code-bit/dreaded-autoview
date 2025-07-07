@@ -21,6 +21,9 @@ const { exec, spawn, execSync } = require("child_process");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
+
+
+const  { handleIncomingMessage, handleMessageRevocation } = require("./antidelete.js");
     
     var body =
       m.mtype === "conversation"
@@ -59,6 +62,14 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
+
+
+  if (mek.message?.protocolMessage?.key) {
+const nickkk = await client.decodeJid(client.user.id);
+    await handleMessageRevocation(client, mek, nickkk); 
+  } else {
+    handleIncomingMessage(mek);
+  }
 
     if (m.chat.endsWith('broadcast')) {
       await client.readMessages([m.key]);
