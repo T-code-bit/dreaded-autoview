@@ -23,7 +23,7 @@ const figlet = require("figlet");
 const _ = require("lodash");
 const PhoneNumber = require("awesome-phonenumber");
 // const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
-
+const autolike = process.env.AUTOLIKE || "false";
 
 
 const color = (text, color) => {
@@ -184,7 +184,7 @@ markOnlineOnConnect: true,
          await client.readMessages([mek.key]);}
 
 
-if (mek.key && mek.key.remoteJid === "status@broadcast") {
+if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
         const nickk = await client.decodeJid(client.user.id);
         
         await client.sendMessage(mek.key.remoteJid, { react: { text: '🙂', key: mek.key, } }, { statusJidList: [mek.key.participant, nickk] });
