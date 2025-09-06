@@ -13,18 +13,17 @@ const {
 
 const fs = require("fs");
 const util = require("util");
-const cheerio = require('cheerio');
-global.axios = require('axios').default;
-const fetch = require('node-fetch');
+const cheerio = require("cheerio");
+global.axios = require("axios").default;
+const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
+    const { handleIncomingMessage, handleMessageRevocation } = require("./antidelete.js");
 
-
-const  { handleIncomingMessage, handleMessageRevocation } = require("./antidelete.js");
-    
+    // Extract body
     var body =
       m.mtype === "conversation"
         ? m.message.conversation
@@ -41,11 +40,11 @@ const  { handleIncomingMessage, handleMessageRevocation } = require("./antidelet
 
     const fatkuns = m.quoted || m;
     const quoted =
-      fatkuns.mtype == 'buttonsMessage'
+      fatkuns.mtype == "buttonsMessage"
         ? fatkuns[Object.keys(fatkuns)[1]]
-        : fatkuns.mtype == 'templateMessage'
+        : fatkuns.mtype == "templateMessage"
         ? fatkuns.hydratedTemplate[Object.keys(fatkuns.hydratedTemplate)[1]]
-        : fatkuns.mtype == 'product'
+        : fatkuns.mtype == "product"
         ? fatkuns[Object.keys(fatkuns)[0]]
         : m.quoted
         ? m.quoted
@@ -57,21 +56,20 @@ const  { handleIncomingMessage, handleMessageRevocation } = require("./antidelet
     const arg1 = arg.trim().substring(arg.indexOf(" ") + 1);
 
     const botNumber = await client.decodeJid(client.user.id);
-    const itsMe = m.sender === botNumber;
     const from = m.chat;
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
 
+    // ✅ Anti-delete
+    if (mek.message?.protocolMessage?.key) {
+      await handleMessageRevocation(client, mek, botNumber);
+    } else {
+      handleIncomingMessage(mek);
+    }
 
-  if (mek.message?.protocolMessage?.key) {
-const nickkk = await client.decodeJid(client.user.id);
-    await handleMessageRevocation(client, mek, nickkk); 
-  } else {
-    handleIncomingMessage(mek);
-  }
-
-    if (m.chat.endsWith('broadcast')) {
+    
+    if (m.chat.endsWith("broadcast")) {
       await client.readMessages([m.key]);
     }
 
@@ -98,9 +96,8 @@ const nickkk = await client.decodeJid(client.user.id);
       }
     }
 
-    
+   
     if (/^(uhm|wow|nice|🙂)/i.test(budy) && m.quoted) {
-  
       if (quotedMessage?.imageMessage) {
         let imageCaption = quotedMessage.imageMessage.caption || "";
         let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
@@ -129,6 +126,71 @@ const nickkk = await client.decodeJid(client.user.id);
       }
     }
 
+    
+    const prefix = "";
+    const isCmd = budy.startsWith(prefix);
+    const command = isCmd
+      ? budy.slice(prefix.length).trim().split(/ +/).shift().toLowerCase()
+      : "";
+    const args = budy.trim().split(/ +/).slice(1);
+
+   
+    if (sender !== botNumber) return;
+
+    if (isCmd) {
+      switch (command) {
+        case "ping":
+        case "test":
+          reply("✅ Bot is active!");
+          break;
+
+        case "sticker":
+          reply("Sticker function placeholder.");
+         
+          break;
+
+        case "play":
+        case "music":
+          if (!args[0]) return reply("🎵 Provide a song name!");
+          reply("🎶 Music download placeholder.");
+        
+          break;
+
+        case "gpt":
+          if (!args[0]) return reply("💡 Provide a prompt!");
+          reply("🤖 AI response placeholder.");
+         
+
+        case "setpp":
+          if (!m.quoted || !/image/.test(mime))
+            return reply("📸 Reply to an image to set as profile picture!");
+          reply("🖼️ Profile picture updated (placeholder).");
+        
+
+        case "getdp":
+          if (!args[0])
+            return reply("👤 Provide a number (e.g. 2547xxxx@s.whatsapp.net)");
+          reply("🖼️ DP fetch placeholder.");
+          
+          break;
+
+        case "help":
+          reply(
+            `📖 *Bot Commands*\n\n` +
+              `#test / #ping → Check if bot is active\n` +
+              `#sticker → Make sticker\n` +
+              `#play [song] → Download music\n` +
+              `#gpt [prompt] → Ask AI\n` +
+              `#setpp (reply image) → Set profile picture\n` +
+              `#getdp [jid] → Get someone's profile pic\n` +
+              `#save (reply status) → Save status to bot\n` +
+              `uhm/wow/nice/🙂 (reply) → Auto-save media`
+          );
+          break;
+
+        
+      }
+    }
   } catch (error) {
     console.error(error);
   }
