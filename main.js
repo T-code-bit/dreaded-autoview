@@ -199,11 +199,62 @@ case "darkgpt":
         break;
 
         case "getdp":
-          if (!args[0])
-            return reply("👤 Provide a number (e.g. 2547xxxx@s.whatsapp.net)");
-          reply("🖼️ DP fetch placeholder.");
-          
-          break;
+  try {
+    let sender, name;
+
+    if (args[0]) {
+     
+      let num = args.join("").replace(/[^0-9]/g, ""); 
+
+      if (num.startsWith("0")) {
+        num = "254" + num.slice(1);
+      } else if (num.startsWith("1")) {
+        num = "254" + num; 
+      } else if (!num.startsWith("254")) {
+        num = "254" + num; 
+      }
+
+      sender = num + "@s.whatsapp.net";
+      name = "@" + num;
+    } else if (m.quoted) {
+      sender = m.quoted.sender;
+      name = "@" + sender.split("@")[0];
+    } else {
+      sender = m.sender;
+      name = m.pushName;
+    }
+
+    
+    let ppUrl;
+    try {
+      ppUrl = await client.profilePictureUrl(sender, "image");
+    } catch {
+      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg"; 
+    }
+
+    
+    let about;
+    try {
+      const statusArr = await client.fetchStatus(sender);
+      about = statusArr[0]?.status?.status || "No about/status message.";
+    } catch {
+      about = "About not accessible due to user privacy";
+    }
+
+   
+    const mess = {
+      image: { url: ppUrl },
+      caption: `Name: ${name}\nAbout:\n${about}`,
+      ...(m.quoted || args[0] ? { mentions: [sender] } : {})
+    };
+
+    
+    await client.sendMessage(client.user.id, mess);
+    reply("📩 Profile picture has been sent to my inbox.");
+  } catch (err) {
+    reply("❌ Failed to fetch profile picture.\n\n" + err.message);
+  }
+  break;
 
         case "help":
           reply(
