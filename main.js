@@ -18,12 +18,13 @@ global.axios = require("axios").default;
 const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
+const { gpt } = require('./Scraper/gpt.js');  
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
     const { handleIncomingMessage, handleMessageRevocation } = require("./antidelete.js");
 
-    // Extract body
+   
     var body =
       m.mtype === "conversation"
         ? m.message.conversation
@@ -61,7 +62,7 @@ module.exports = main = async (client, m, chatUpdate) => {
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
 
-    // ✅ Anti-delete
+   
     if (mek.message?.protocolMessage?.key) {
       await handleMessageRevocation(client, mek, botNumber);
     } else {
@@ -156,16 +157,29 @@ module.exports = main = async (client, m, chatUpdate) => {
         
           break;
 
-        case "gpt":
-          if (!args[0]) return reply("💡 Provide a prompt!");
-          reply("🤖 AI response placeholder.");
-         
+        
+case "gpt":
+  if (!args[0]) return reply("💡 Provide a prompt!");
+
+  try {
+    const prompt = args.join(" ");
+    const result = await gpt(prompt);
+
+    if (result?.response) {
+      reply(result.response);
+    } else {
+      reply("⚠️ Invalid response from AI.");
+    }
+  } catch (err) {
+    reply("❌ Something went wrong...\n\n" + err.message);
+  }
+  break;
 
         case "setpp":
           if (!m.quoted || !/image/.test(mime))
             return reply("📸 Reply to an image to set as profile picture!");
           reply("🖼️ Profile picture updated (placeholder).");
-        
+        break;
 
         case "getdp":
           if (!args[0])
