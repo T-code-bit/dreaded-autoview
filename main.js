@@ -18,7 +18,7 @@ global.axios = require("axios").default;
 const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
-const { gpt } = require('./Scraper/gpt.js');  
+const { gpt } = require('./Scrapers/gpt.js');  
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
