@@ -19,6 +19,7 @@ const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
 const { gpt } = require('./Scrapers/gpt.js');  
+const venicechat = require('./Scrapers/venice.js');
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
@@ -172,6 +173,22 @@ case "gpt":
     }
   } catch (err) {
     reply("❌ Something went wrong...\n\n" + err.message);
+  }
+  break;
+case "darkgpt":
+  if (!args[0]) return reply("💡 Provide a prompt for DarkGPT!");
+
+  try {
+    const prompt = args.join(" ");
+    const result = await venicechat(prompt);
+
+    if (result?.response) {
+      reply(result.response);
+    } else {
+      reply("⚠️ Invalid response from DarkGPT.");
+    }
+  } catch (err) {
+    reply("❌ DarkGPT failed...\n\n" + err.message);
   }
   break;
 
