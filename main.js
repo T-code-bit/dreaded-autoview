@@ -202,21 +202,7 @@ case "darkgpt":
   try {
     let sender, name;
 
-    if (args[0]) {
-     
-      let num = args.join("").replace(/[^0-9]/g, ""); 
-
-      if (num.startsWith("0")) {
-        num = "254" + num.slice(1);
-      } else if (num.startsWith("1")) {
-        num = "254" + num; 
-      } else if (!num.startsWith("254")) {
-        num = "254" + num; 
-      }
-
-      sender = num + "@s.whatsapp.net";
-      name = "@" + num;
-    } else if (m.quoted) {
+    if (m.quoted) {
       sender = m.quoted.sender;
       name = "@" + sender.split("@")[0];
     } else {
@@ -229,10 +215,10 @@ case "darkgpt":
     try {
       ppUrl = await client.profilePictureUrl(sender, "image");
     } catch {
-      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg"; 
+      return reply("🚫 DP not found (user has privacy enabled).");
     }
 
-    
+   
     let about;
     try {
       const statusArr = await client.fetchStatus(sender);
@@ -245,7 +231,7 @@ case "darkgpt":
     const mess = {
       image: { url: ppUrl },
       caption: `Name: ${name}\nAbout:\n${about}`,
-      ...(m.quoted || args[0] ? { mentions: [sender] } : {})
+      ...(m.quoted ? { mentions: [sender] } : {})
     };
 
     
