@@ -62,7 +62,7 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
-const Jimp = require("jimp").Jimp;  
+const { Jimp } = require("jimp");
 
 async function generateProfilePicture(buffer) {
   const image = await Jimp.read(buffer);
