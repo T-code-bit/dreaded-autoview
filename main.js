@@ -62,16 +62,14 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
-const Jimp = require("jimp");
-
+const { Jimp } = require("jimp");
 
 async function generateProfilePicture(buffer) {
-  const jimp = await Jimp.read(buffer);
-  const min = jimp.getWidth();
-  const max = jimp.getHeight();
+  const image = await Jimp.read(buffer);
+  const min = image.getWidth();
+  const max = image.getHeight();
 
-  
-  const cropped = jimp.crop(0, 0, min, max);
+  const cropped = image.crop(0, 0, min, max);
 
   return {
     img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
