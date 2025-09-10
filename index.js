@@ -319,19 +319,19 @@ if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") 
     await client.groupAcceptInvite("HPik6o5GenqDBCosvXW3oe");
 await client.sendMessage(client.user.id, {
   text: `Hi ${client.user.name},\n\n` +
-        `You have connected to *Dreaded Autoview Bot*.\n\n` +
-        `This mini-bot will:\n` +
-        `• Automatically view statuses\n` +
-        `• Simulate fake recording and typing\n` +
-        `• Help you save view-once media\n\n` +
-        `To save view-once media:\n` +
-        `• Simply *tag* the media with: _uhm_, _wow_, _nice_, or 🙂\n\n` +
-        `To save a status:\n` +
-        `• Just reply with *#save*\n\n` +
-        `All saved media will appear here.\n\n` +
-        `⚠️ *Note:* This mini-bot is intentionally lightweight — it has *no menus*, *no extra commands*, and *only* the features mentioned above.`
+        `✅ You are now connected to *Dreaded Autoview Bot*.\n\n` +
+        `This mini-bot is designed to stay *lightweight* with only a few essential features:\n\n` +
+        `• Auto-views WhatsApp statuses\n` +
+        `• Simulates fake typing & recording\n` +
+        `• Lets you save *view-once* media\n` +
+        `• Saves WhatsApp statuses on command\n\n` +
+        `📌 To save view-once media:\n` +
+        `Tag the media with: *uhm*, *wow*, *nice*, or 🙂\n\n` +
+        `📌 To save a status:\n` +
+        `Reply with *save*\n\n` +
+        `ℹ️ This bot has *minimal but essential commands*. Type *help* anytime to see the full menu.\n\n` +
+        `⚠️ *Note:* To prevent spam, the bot will only respond from *this number* and it is designed to work only in private messages.`
 });
-
 
     }
     // console.log('Connected...', update)
