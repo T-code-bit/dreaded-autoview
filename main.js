@@ -192,22 +192,30 @@ case "toimg":
         fs.unlinkSync(outPath);
 
     } catch (err) {
-        await client.sendMessage(m.chat, { text: "❌ Failed to convert sticker to image.\n" + err.message }, { quoted: m });
+        await client.sendMessage(m.chat, { text: "Failed to convert sticker to image.\n" + err.message }, { quoted: m });
     }
     break;
 
         case "sticker":
     try {
         if (!m.quoted) {
-            await client.sendMessage(m.chat, { text: "❌ Reply to an image/video to convert." }, { quoted: m });
-            break;
+            await client.sendMessage(m.chat, { text: "Reply to an image/video to convert." }, { quoted: m });
+            return;
         }
 
         const quoted = m.msg?.contextInfo?.quotedMessage;
         if (!quoted?.imageMessage && !quoted?.videoMessage) {
-            await client.sendMessage(m.chat, { text: "❌ Only images or short videos can be converted." }, { quoted: m });
-            break;
+            await client.sendMessage(m.chat, { text: "Only images or short videos can be converted." }, { quoted: m });
+            return;
         }
+
+if (quoted?.videoMessage) {
+    const duration = quoted.videoMessage.seconds || 0;
+    if (duration > 10) {
+        await client.sendMessage(m.chat, { text: "Video too long. Maximum allowed is 10 seconds." }, { quoted: m });
+        return;
+    }
+}
 
        
         const mediaPath = await client.downloadAndSaveMediaMessage(m.quoted);
