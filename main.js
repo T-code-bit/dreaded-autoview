@@ -62,19 +62,26 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
-const jimp = require("jimp");
+const Jimp = require("jimp").Jimp;  
 
 async function generateProfilePicture(buffer) {
-  const image = await jimp.read(buffer);
-  
-  const min = image.bitmap.width;
-  const max = image.bitmap.height;
+  const image = await Jimp.read(buffer);
 
-  const cropped = image.crop(0, 0, min, max);
+  const width = image.bitmap.width;
+  const height = image.bitmap.height;
+  const size = Math.min(width, height);
+
+  
+  const cropped = image.crop(
+    (width - size) / 2,
+    (height - size) / 2,
+    size,
+    size
+  );
 
   return {
-    img: await cropped.scaleToFit(720, 720).getBufferAsync(jimp.MIME_JPEG),
-    preview: await cropped.scaleToFit(720, 720).getBufferAsync(jimp.MIME_JPEG),
+    img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+    preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
   };
 }
     if (mek.message?.protocolMessage?.key) {
