@@ -13,12 +13,13 @@ S_WHATSAPP_NET,
 } = require("@whiskeysockets/baileys");
 
 const fs = require("fs");
-const util = require("util");
 const cheerio = require("cheerio");
 global.axios = require("axios").default;
 const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
+const util = require("util");
+const execPromise = util.promisify(exec);
 const { gpt } = require('./Scrapers/gpt.js');  
 const venicechat = require('./Scrapers/venice.js');
 
@@ -157,6 +158,42 @@ async function generateProfilePicture(buffer) {
         case "test":
           reply("✅ Bot is active!");
           break;
+
+case "toimg": 
+    try {
+        const quoted = m.quoted;
+        if (!quoted || quoted.mtype !== "stickerMessage") {
+            await client.sendMessage(m.chat, { text: "❌ Reply to a *sticker* to convert it to image." }, { quoted: m });
+            break;
+        }
+
+        if (quoted.isAnimated || quoted.isLottie || quoted.mimetype !== "image/webp") {
+            await client.sendMessage(m.chat, { text: "❌ Only *static* stickers are supported." }, { quoted: m });
+            break;
+        }
+
+        fs.mkdirSync("./temp", { recursive: true });
+
+        const tmpPath = "./temp/sticker.webp";
+        const outPath = "./temp/image.jpg";
+
+        const stream = await quoted.download();
+        await fs.promises.writeFile(tmpPath, stream);
+
+        await execPromise(`ffmpeg -y -i "${tmpPath}" "${outPath}"`);
+
+        await client.sendMessage(m.chat, {
+            image: fs.readFileSync(outPath),
+            caption: "✅ Sticker converted to image."
+        }, { quoted: m });
+
+        fs.unlinkSync(tmpPath);
+        fs.unlinkSync(outPath);
+
+    } catch (err) {
+        await client.sendMessage(m.chat, { text: "❌ Failed to convert sticker to image.\n" + err.message }, { quoted: m });
+    }
+    break;
 
         case "sticker":
           reply("Sticker function placeholder.");
