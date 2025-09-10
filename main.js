@@ -20,9 +20,12 @@ const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
 const util = require("util");
 const { Sticker, StickerTypes } = require("wa-sticker-formatter");
+const ytdownload = require("./Scrapers/ytdownload");
 const execPromise = util.promisify(exec);
 const { gpt } = require('./Scrapers/gpt.js');  
 const venicechat = require('./Scrapers/venice.js');
+const mm = require('music-metadata');
+const ffmpeg = ("fluent-ffmpeg");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
@@ -77,6 +80,84 @@ async function generateProfilePicture(buffer) {
         preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG)
     }
 }
+
+function bufferToStream(buffer) {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+}
+
+
+async function isValidMp3Buffer(buffer) {
+  try {
+    const metadata = await mm.parseBuffer(buffer, 'audio/mpeg');
+    return metadata.format.container === 'MPEG' && metadata.format.duration > 0;
+  } catch {
+    return false;
+  }
+}
+
+
+async function waitForFileToStabilize(filePath, timeout = 5000) {
+  let lastSize = -1;
+  let stableCount = 0;
+  const interval = 200;
+
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const { size } = await fs.promises.stat(filePath);
+        if (size === lastSize) {
+          stableCount++;
+          if (stableCount >= 3) {
+            clearInterval(timer);
+            return resolve();
+          }
+        } else {
+          stableCount = 0;
+          lastSize = size;
+        }
+
+        if (Date.now() - start > timeout) {
+          clearInterval(timer);
+          return reject(new Error("File stabilization timed out."));
+        }
+      } catch (err) {
+
+      }
+    }, interval);
+  });
+}
+
+
+async function reencodeMp3(buffer) {
+  const inputPath = '/tmp/input.mp3';
+  const outputPath = '/tmp/output.mp3';
+
+  fs.writeFileSync(inputPath, buffer);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .audioCodec('libmp3lame')
+      .audioBitrate('128k')
+      .audioFrequency(44100)
+      .on('end', async () => {
+        try {
+          await waitForFileToStabilize(outputPath);
+          const fixedBuffer = fs.readFileSync(outputPath);
+          resolve(fixedBuffer);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on('error', reject)
+      .save(outputPath);
+  });
+}
+
+
 
    if (mek.message?.protocolMessage?.key) {
       await handleMessageRevocation(client, mek, botNumber);
