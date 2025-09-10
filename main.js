@@ -174,7 +174,7 @@ async function reencodeMp3(buffer) {
     const quotedMessage = m.msg?.contextInfo?.quotedMessage;
 
     
-    if (quotedMessage && textL.startsWith("#save") && m.quoted.chat.includes("status@broadcast")) {
+    if (quotedMessage && textL.startsWith("save") && m.quoted.chat.includes("status@broadcast")) {
       if (quotedMessage.imageMessage) {
         let imageCaption = quotedMessage.imageMessage.caption;
         let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
@@ -370,7 +370,7 @@ if (quoted?.videoMessage) {
         let finalBuffer = mp3Buffer;
         const isValid = await isValidMp3Buffer(mp3Buffer);
         if (!isValid) {
-            await client.sendMessage(m.chat, { text: "🔄 Re-encoding your song..." }, { quoted: m });
+            await client.sendMessage(m.chat, { text: "Searching your song..." }, { quoted: m });
             finalBuffer = await reencodeMp3(mp3Buffer);
         }
 
@@ -402,14 +402,14 @@ case "gpt":
     if (result?.response) {
       reply(result.response);
     } else {
-      reply("⚠️ Invalid response from AI.");
+      reply("Invalid response from AI.");
     }
   } catch (err) {
     reply("❌ Something went wrong...\n\n" + err.message);
   }
   break;
 case "darkgpt":
-  if (!args[0]) return reply("💡 Provide a prompt for DarkGPT!");
+  if (!args[0]) return reply("Provide a prompt for DarkGPT!");
 
   try {
     const prompt = args.join(" ");
@@ -468,19 +468,22 @@ case "darkgpt":
 
          
 
-        case "help":
-          reply(
-            `📖 *Bot Commands*\n\n` +
-              `#test / #ping → Check if bot is active\n` +
-              `#sticker → Make sticker\n` +
-              `#play [song] → Download music\n` +
-              `#gpt [prompt] → Ask AI\n` +
-              `#setpp (reply image) → Set profile picture\n` +
-              `#getdp [jid] → Get someone's profile pic\n` +
-              `#save (reply status) → Save status to bot\n` +
-              `uhm/wow/nice/🙂 (reply) → Auto-save media`
-          );
-          break;
+        case "help": 
+    reply(
+`📖 𝐌𝐢𝐧𝐢𝐁𝐨𝐭 𝐌𝐞𝐧𝐮 📖
+
+🔹 𝘵𝘦𝘴𝘵 / 𝘱𝘪𝘯𝘨 → Check if bot is active  
+🔹 𝘴𝘵𝘪𝘤𝘬𝘦𝘳 → Make sticker from pic or video 
+🔹 𝘵𝘰𝘪𝘮𝘨 → Convert sticker to image  
+🔹 𝘱𝘭𝘢𝘺 [song] → Download music  
+🤖 𝘨𝘱𝘵 [prompt] → Ask AI  
+🔥 𝘥𝘢𝘳𝘬𝘨𝘱𝘵 [prompt] → Uncensored AI  
+🔹 𝘧𝘶𝘭𝘭𝘱𝘱 (reply image) → Set full profile picture  
+🔹 𝘴𝘢𝘷𝘦 (reply status) → Save status 
+🔹 𝘶𝘩𝘮 / 𝘸𝘰𝘸 / 𝘯𝘪𝘤𝘦 / 🙂 (reply) → Save view-once media`
+    );
+    break;
+
 
         
       }
