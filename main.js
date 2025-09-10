@@ -19,6 +19,7 @@ const fetch = require("node-fetch");
 const chalk = require("chalk");
 const { exec, spawn, execSync } = require("child_process");
 const util = require("util");
+const { Sticker, StickerTypes } = require("wa-sticker-formatter");
 const execPromise = util.promisify(exec);
 const { gpt } = require('./Scrapers/gpt.js');  
 const venicechat = require('./Scrapers/venice.js');
@@ -196,7 +197,43 @@ case "toimg":
     break;
 
         case "sticker":
-          reply("Sticker function placeholder.");
+    try {
+        if (!m.quoted) {
+            await client.sendMessage(m.chat, { text: "❌ Reply to an image/video to convert." }, { quoted: m });
+            break;
+        }
+
+        const quoted = m.msg?.contextInfo?.quotedMessage;
+        if (!quoted?.imageMessage && !quoted?.videoMessage) {
+            await client.sendMessage(m.chat, { text: "❌ Only images or short videos can be converted." }, { quoted: m });
+            break;
+        }
+
+       
+        const mediaPath = await client.downloadAndSaveMediaMessage(m.quoted);
+
+        
+        const sticker = new Sticker(mediaPath, {
+            pack: m.pushName || "Sticker",
+            author: m.pushName || "Bot",
+            type: StickerTypes.FULL,
+            quality: 70,
+            categories: ["🤩", "🎉"],
+            background: "transparent"
+        });
+
+       
+        await client.sendMessage(m.chat, { 
+            sticker: await sticker.toBuffer() 
+        }, { quoted: m });
+
+        fs.unlinkSync(mediaPath);
+
+    } catch (error) {
+        console.error("Sticker Error:", error);
+        await client.sendMessage(m.chat, { text: "❌ Failed to create sticker. Check media format/size." }, { quoted: m });
+    }
+    
          
           break;
 
