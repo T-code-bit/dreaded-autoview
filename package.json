@@ -26,6 +26,7 @@
    "music-metadata": "latest",
     "node-fetch": "^2.6.1",
     "cheerio": "^1.0.0-rc.10",
+    "yt-search": "^2.10.4",
     "pino": "^7.0.5"
   },
   
