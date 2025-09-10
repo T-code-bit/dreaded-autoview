@@ -65,26 +65,29 @@ module.exports = main = async (client, m, chatUpdate) => {
 const { Jimp } = require("jimp");
 
 async function generateProfilePicture(buffer) {
-  const image = await Jimp.read(buffer);
+  try {
+    const image = await Jimp.read(buffer);
+    const width = image.bitmap.width;
+    const height = image.bitmap.height;
+    const size = Math.min(width, height);
 
-  const width = image.bitmap.width;
-  const height = image.bitmap.height;
-  const size = Math.min(width, height);
+   
+    const cropped = image.crop(
+      Math.floor((width - size) / 2),
+      Math.floor((height - size) / 2),
+      size,
+      size
+    );
 
-  
-  const cropped = image.crop(
-    (width - size) / 2,
-    (height - size) / 2,
-    size,
-    size
-  );
-
-  return {
-    img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
-    preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
-  };
+    
+    const processedImage = cropped.resize(720, 720);
+    return await processedImage.getBufferAsync(Jimp.MIME_JPEG);
+    
+  } catch (error) {
+    throw new Error(`Failed to process image: ${error.message}`);
+  }
 }
-    if (mek.message?.protocolMessage?.key) {
+   if (mek.message?.protocolMessage?.key) {
       await handleMessageRevocation(client, mek, botNumber);
     } else {
       handleIncomingMessage(mek);
@@ -214,19 +217,12 @@ case "darkgpt":
 
         case "fullpp":
   try {
-    
-
-    
     const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
     if (!quotedImage) return reply("📸 Quote an image to set as bot profile picture.");
 
-    
     const medis = await client.downloadAndSaveMediaMessage(quotedImage);
+    const imgBuffer = await generateProfilePicture(medis);
 
-    
-    const { img } = await generateProfilePicture(medis);
-
-    
     await client.query({
       tag: "iq",
       attrs: {
@@ -238,18 +234,18 @@ case "darkgpt":
         {
           tag: "picture",
           attrs: { type: "image" },
-          content: img,
+          content: imgBuffer,
         },
       ],
     });
 
-    
     fs.unlinkSync(medis);
-
     reply("✅ Bot profile picture updated successfully!");
   } catch (error) {
     reply("❌ An error occurred while updating bot profile picture.\n\n" + error);
   }
+
+
   
         break;
 
