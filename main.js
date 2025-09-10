@@ -25,7 +25,7 @@ const execPromise = util.promisify(exec);
 const { gpt } = require('./Scrapers/gpt.js');  
 const venicechat = require('./Scrapers/venice.js');
 const mm = require('music-metadata');
-const ffmpeg = ("fluent-ffmpeg");
+const ffmpeg = require("fluent-ffmpeg");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
