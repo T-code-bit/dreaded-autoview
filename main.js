@@ -4,6 +4,7 @@ const {
   WA_DEFAULT_EPHEMERAL,
   generateWAMessageFromContent,
   proto,
+S_WHATSAPP_NET,
   generateWAMessageContent,
   generateWAMessage,
   prepareWAMessageMedia,
