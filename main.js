@@ -198,49 +198,7 @@ case "darkgpt":
           reply("🖼️ Profile picture updated (placeholder).");
         break;
 
-        case "getdp":
-  try {
-    let sender, name;
-
-    if (m.quoted) {
-      sender = m.quoted.sender;
-      name = "@" + sender.split("@")[0];
-    } else {
-      sender = m.sender;
-      name = m.pushName;
-    }
-
-    
-    let ppUrl;
-    try {
-      ppUrl = await client.profilePictureUrl(sender, "image");
-    } catch {
-      return reply("🚫 DP not found (user has privacy enabled).");
-    }
-
-   
-    let about;
-    try {
-      const statusArr = await client.fetchStatus(sender);
-      about = statusArr[0]?.status?.status || "No about/status message.";
-    } catch {
-      about = "About not accessible due to user privacy";
-    }
-
-   
-    const mess = {
-      image: { url: ppUrl },
-      caption: `Name: ${name}\nAbout:\n${about}`,
-      ...(m.quoted ? { mentions: [sender] } : {})
-    };
-
-    
-    await client.sendMessage(client.user.id, mess);
-    reply("📩 Profile picture has been sent to my inbox.");
-  } catch (err) {
-    reply("❌ Failed to fetch profile picture.\n\n" + err.message);
-  }
-  break;
+         
 
         case "help":
           reply(
