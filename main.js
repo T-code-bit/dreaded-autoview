@@ -203,7 +203,7 @@ case "darkgpt":
   }
   break;
 
-        case "fullpp": {
+        case "fullpp":
         try {
             const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
             if (!quotedImage) {
