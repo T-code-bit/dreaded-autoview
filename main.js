@@ -197,6 +197,7 @@ case "toimg":
     break;
 
         case "sticker":
+        case "s":
     try {
         if (!m.quoted) {
             await client.sendMessage(m.chat, { text: "Reply to an image/video to convert." }, { quoted: m });
