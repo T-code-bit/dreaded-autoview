@@ -17,6 +17,7 @@ const cheerio = require("cheerio");
 global.axios = require("axios").default;
 const fetch = require("node-fetch");
 const chalk = require("chalk");
+const yts = require("yts");
 const { exec, spawn, execSync } = require("child_process");
 const util = require("util");
 const { Sticker, StickerTypes } = require("wa-sticker-formatter");
@@ -328,9 +329,65 @@ if (quoted?.videoMessage) {
           break;
 
         case "play":
-        case "music":
-          if (!args[0]) return reply("🎵 Provide a song name!");
-          reply("🎶 Music download placeholder.");
+    const query = args.join(" ");
+    if (!query) {
+        await client.sendMessage(m.chat, { text: "provide a song name!" }, { quoted: m });
+        return;
+    }
+
+    try {
+        const { videos } = await yts(query);
+        if (!videos || videos.length === 0) {
+            throw new Error("No songs found!");
+        }
+
+        const song = videos[0];
+        let mp3 = null;
+
+        try {
+            const result = await ytdownload(song.url);
+            mp3 = result?.mp3;
+        } catch (e) {
+            throw new Error("Failed to fetch song link.");
+        }
+
+        if (!mp3) {
+            throw new Error("No mp3 URL found!");
+        }
+
+        const responses = await axios.get(mp3, {
+            responseType: "arraybuffer",
+            headers: { "User-Agent": "Mozilla/5.0" }
+        });
+
+        const mp3Buffer = Buffer.from(responses.data);
+
+        const sizeMB = mp3Buffer.length / (1024 * 1024);
+        if (sizeMB > 16) {
+            await client.sendMessage(m.chat, { text: "⚠️ File is large, download might take a while..." }, { quoted: m });
+        }
+
+        let finalBuffer = mp3Buffer;
+        const isValid = await isValidMp3Buffer(mp3Buffer);
+        if (!isValid) {
+            await client.sendMessage(m.chat, { text: "🔄 Re-encoding your song..." }, { quoted: m });
+            finalBuffer = await reencodeMp3(mp3Buffer);
+        }
+
+        await client.sendMessage(m.chat, { text: `🎵 Downloading: *${song.title}*` }, { quoted: m });
+
+        await client.sendMessage(m.chat, {
+            document: finalBuffer,
+            mimetype: "audio/mpeg",
+            ptt: false,
+            fileName: `${song.title}.mp3`
+        }, { quoted: m });
+
+    } catch (error) {
+        console.error(error);
+        await client.sendMessage(m.chat, { text: "Download failed: " + error.message }, { quoted: m });
+    }
+
         
           break;
 
