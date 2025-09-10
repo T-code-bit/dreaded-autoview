@@ -62,7 +62,22 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
+const Jimp = require("jimp");
 
+
+async function generateProfilePicture(buffer) {
+  const jimp = await Jimp.read(buffer);
+  const min = jimp.getWidth();
+  const max = jimp.getHeight();
+
+  
+  const cropped = jimp.crop(0, 0, min, max);
+
+  return {
+    img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+    preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+  };
+}
    
     if (mek.message?.protocolMessage?.key) {
       await handleMessageRevocation(client, mek, botNumber);
@@ -192,10 +207,45 @@ case "darkgpt":
   }
   break;
 
-        case "setpp":
-          if (!m.quoted || !/image/.test(mime))
-            return reply("📸 Reply to an image to set as profile picture!");
-          reply("🖼️ Profile picture updated (placeholder).");
+        case "fullpp":
+  try {
+    
+
+    
+    const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
+    if (!quotedImage) return reply("📸 Quote an image to set as bot profile picture.");
+
+    
+    const medis = await client.downloadAndSaveMediaMessage(quotedImage);
+
+    
+    const { img } = await generateProfilePicture(medis);
+
+    
+    await client.query({
+      tag: "iq",
+      attrs: {
+        to: client.user.id,
+        type: "set",
+        xmlns: "w:profile:picture",
+      },
+      content: [
+        {
+          tag: "picture",
+          attrs: { type: "image" },
+          content: img,
+        },
+      ],
+    });
+
+    
+    fs.unlinkSync(medis);
+
+    reply("✅ Bot profile picture updated successfully!");
+  } catch (error) {
+    reply("❌ An error occurred while updating bot profile picture.\n\n" + error);
+  }
+  
         break;
 
          
