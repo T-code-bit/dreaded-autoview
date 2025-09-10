@@ -234,7 +234,7 @@ async function reencodeMp3(buffer) {
 
    
     if (sender !== botNumber) return;
-
+if (m.chat.endsWith('@g.us')) return;
     if (isCmd) {
       switch (command) {
         case "ping":
