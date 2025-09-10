@@ -62,31 +62,19 @@ module.exports = main = async (client, m, chatUpdate) => {
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
-const { Jimp } = require("jimp");
+const Jimp = require("jimp");
 
 async function generateProfilePicture(buffer) {
-  try {
-    const image = await Jimp.read(buffer);
-    const width = image.bitmap.width;
-    const height = image.bitmap.height;
-    const size = Math.min(width, height);
-
-   
-    const cropped = image.crop(
-      Math.floor((width - size) / 2),
-      Math.floor((height - size) / 2),
-      size,
-      size
-    );
-
-    
-    const processedImage = cropped.resize(720, 720);
-    return await processedImage.getBufferAsync(Jimp.MIME_JPEG);
-    
-  } catch (error) {
-    throw new Error(`Failed to process image: ${error.message}`);
-  }
+    const jimp = await Jimp.read(buffer)
+    const min = jimp.getWidth()
+    const max = jimp.getHeight()
+    const cropped = jimp.crop(0, 0, min, max)
+    return {
+        img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+        preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG)
+    }
 }
+
    if (mek.message?.protocolMessage?.key) {
       await handleMessageRevocation(client, mek, botNumber);
     } else {
@@ -215,36 +203,43 @@ case "darkgpt":
   }
   break;
 
-        case "fullpp":
-  try {
-    const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
-    if (!quotedImage) return reply("📸 Quote an image to set as bot profile picture.");
+        case "fullpp": {
+        try {
+            const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
+            if (!quotedImage) {
+                await client.sendMessage(m.chat, { text: "❌ Quote an image to set as profile picture." }, { quoted: m });
+                break;
+            }
 
-    const medis = await client.downloadAndSaveMediaMessage(quotedImage);
-    const imgBuffer = await generateProfilePicture(medis);
+           
+            const medis = await client.downloadAndSaveMediaMessage(quotedImage);
 
-    await client.query({
-      tag: "iq",
-      attrs: {
-        to: client.user.id,
-        type: "set",
-        xmlns: "w:profile:picture",
-      },
-      content: [
-        {
-          tag: "picture",
-          attrs: { type: "image" },
-          content: imgBuffer,
-        },
-      ],
-    });
+           
+            const { img } = await generateProfilePicture(medis);
 
-    fs.unlinkSync(medis);
-    reply("✅ Bot profile picture updated successfully!");
-  } catch (error) {
-    reply("❌ An error occurred while updating bot profile picture.\n\n" + error);
-  }
+          
+            await client.query({
+                tag: 'iq',
+                attrs: {
+                    to: S_WHATSAPP_NET,
+                    type: 'set',
+                    xmlns: 'w:profile:picture'
+                },
+                content: [
+                    {
+                        tag: 'picture',
+                        attrs: { type: 'image' },
+                        content: img
+                    }
+                ]
+            });
 
+            fs.unlinkSync(medis);
+            await client.sendMessage(m.chat, { text: "✅ Bot profile picture updated successfully!" }, { quoted: m });
+
+        } catch (error) {
+            await client.sendMessage(m.chat, { text: "❌ Error updating profile picture:\n" + error }, { quoted: m });
+        }
 
   
         break;
