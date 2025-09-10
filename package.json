@@ -19,6 +19,7 @@
     "figlet": "^1.5.2",
     "express": "latest",
     "file-type": "16.5.3",
+ "jimp": "^0.16.13",
     "lodash": "^4.17.21",
     "node-fetch": "^2.6.1",
     "cheerio": "^1.0.0-rc.10",
