@@ -138,7 +138,7 @@ module.exports = main = async (client, m, chatUpdate) => {
       }
     }
 
-    const prefix = "";
+    const prefix = ".";
     const isCmd = budy.startsWith(prefix);
     const command = isCmd
       ? budy.slice(prefix.length).trim().split(/ +/).shift().toLowerCase()
