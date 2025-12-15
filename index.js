@@ -210,8 +210,8 @@ client.ev.on("messages.upsert", async (chatUpdate) => {
       console.log('Reaction sent successfully✅️');
     }
 
-    if (mek.key.remoteJid.endsWith('@s.whatsapp.net')) {
-      const Chat = mek.key.remoteJid;
+    if (mek.key.remoteJidAlt.endsWith('@s.whatsapp.net')) {
+      const Chat = mek.key.remoteJidAlt;
 
       let presenceTypes = ["recording", "composing"];
       let selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
