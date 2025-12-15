@@ -251,14 +251,14 @@ async function reencodeMp3(buffer) {
           break;
 case "stats": {
   try {
-    // Uptime
+   
     const totalSeconds = os.uptime();
     const days = Math.floor(totalSeconds / 86400);
     const hours = Math.floor((totalSeconds % 86400) / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = Math.floor(totalSeconds % 60);
 
-    // RAM
+   
     const totalRam = os.totalmem();
     const freeRam = os.freemem();
     const usedRam = totalRam - freeRam;
@@ -266,7 +266,7 @@ case "stats": {
     const formatBytes = (bytes) =>
       (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
 
-    // Disk (ROM) — Linux VPS
+   
     let disk = "N/A";
     try {
       const df = execSync("df -h /").toString().split("\n")[1].split(/\s+/);
