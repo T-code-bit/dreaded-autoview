@@ -391,7 +391,7 @@ if (quoted?.videoMessage) {
          
           break;
 
-        case "play":
+        case "play": 
     const query = args.join(" ");
     if (!query) {
         await client.sendMessage(m.chat, { text: "provide a song name!" }, { quoted: m });
@@ -405,53 +405,50 @@ if (quoted?.videoMessage) {
         }
 
         const song = videos[0];
-        let mp3 = null;
 
-        try {
-            const result = await ytdownload(song.url);
-            mp3 = result?.mp3;
-        } catch (e) {
-            throw new Error("Failed to fetch song link.");
+        await client.sendMessage(
+            m.chat,
+            { text: `🔎 Searching: *${song.title}*` },
+            { quoted: m }
+        );
+
+        const { data } = await axios.get(
+            "https://apiskeith.vercel.app/download/audio",
+            {
+                params: { url: song.url },
+                headers: { "User-Agent": "Mozilla/5.0" }
+            }
+        );
+
+        if (!data?.status || !data?.result) {
+            throw new Error("Failed to get mp3 link.");
         }
 
-        if (!mp3) {
-            throw new Error("No mp3 URL found!");
-        }
+        await client.sendMessage(
+            m.chat,
+            { text: `🎵 Downloading: *${song.title}*` },
+            { quoted: m }
+        );
 
-        const responses = await axios.get(mp3, {
-            responseType: "arraybuffer",
-            headers: { "User-Agent": "Mozilla/5.0" }
-        });
-
-        const mp3Buffer = Buffer.from(responses.data);
-
-        const sizeMB = mp3Buffer.length / (1024 * 1024);
-        if (sizeMB > 16) {
-            await client.sendMessage(m.chat, { text: "⚠️ File is large, download might take a while..." }, { quoted: m });
-        }
-
-        let finalBuffer = mp3Buffer;
-        const isValid = await isValidMp3Buffer(mp3Buffer);
-        if (!isValid) {
-            await client.sendMessage(m.chat, { text: "Searching your song..." }, { quoted: m });
-            finalBuffer = await reencodeMp3(mp3Buffer);
-        }
-
-        await client.sendMessage(m.chat, { text: `🎵 Downloading: *${song.title}*` }, { quoted: m });
-
-        await client.sendMessage(m.chat, {
-            document: finalBuffer,
-            mimetype: "audio/mpeg",
-            ptt: false,
-            fileName: `${song.title}.mp3`
-        }, { quoted: m });
+        await client.sendMessage(
+            m.chat,
+            {
+                document: { url: data.result },
+                mimetype: "audio/mpeg",
+                fileName: `${song.title}.mp3`
+            },
+            { quoted: m }
+        );
 
     } catch (error) {
         console.error(error);
-        await client.sendMessage(m.chat, { text: "Download failed: " + error.message }, { quoted: m });
+        await client.sendMessage(
+            m.chat,
+            { text: "Download failed: " + error.message },
+            { quoted: m }
+        );
     }
-
-        
+       
           break;
 
         
