@@ -1,6 +1,5 @@
 const sessionName = "session";
 
-
 const {
   default: dreadedConnect,
   useMultiFileAuthState,
@@ -10,21 +9,20 @@ const {
   jidDecode,
   proto,
   getContentType,
+  
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
-const fs = require("fs");
+const fs = require("fs").promises;
+const fsSync = require("fs");
 const FileType = require("file-type");
-const { exec, spawn, execSync } = require("child_process");
 const path = require("path");
-const axios = require("axios");
-const chalk = require("chalk");
-const figlet = require("figlet");
-const _ = require("lodash");
 const PhoneNumber = require("awesome-phonenumber");
-// const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
-const autolike = process.env.AUTOLIKE || "false";
+const chalk = require("chalk");
 
+//const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
+
+const autolike = process.env.AUTOLIKE || "false";
 
 const color = (text, color) => {
   return !color ? chalk.green(text) : chalk.keyword(color)(text);
@@ -89,145 +87,106 @@ function smsg(conn, m) {
         ...(m.isGroup ? { participant: m.quoted.sender } : {}),
       }));
 
-      /**
-       *
-       * @returns
-       */
       m.quoted.delete = () => conn.sendMessage(m.quoted.chat, { delete: vM.key });
-
-      /**
-       *
-       * @param {*} jid
-       * @param {*} forceForward
-       * @param {*} options
-       * @returns
-       */
       m.quoted.copyNForward = (jid, forceForward = false, options = {}) => conn.copyNForward(jid, vM, forceForward, options);
-
-      /**
-       *
-       * @returns
-       */
       m.quoted.download = () => conn.downloadMediaMessage(m.quoted);
     }
   }
   if (m.msg.url) m.download = () => conn.downloadMediaMessage(m.msg);
   m.text = m.msg.text || m.msg.caption || m.message.conversation || m.msg.contentText || m.msg.selectedDisplayText || m.msg.title || "";
-  /**
-   * Reply to this message
-   * @param {String|Object} text
-   * @param {String|false} chatId
-   * @param {Object} options
-   */
   m.reply = (text, chatId = m.chat, options = {}) => (Buffer.isBuffer(text) ? conn.sendMedia(chatId, text, "file", "", m, { ...options }) : conn.sendText(chatId, text, m, { ...options }));
-  /**
-   * Copy this message
-   */
   m.copy = () => exports.smsg(conn, M.fromObject(M.toObject(m)));
-
-  /**
-   *
-   * @param {*} jid
-   * @param {*} forceForward
-   * @param {*} options
-   * @returns
-   */
   m.copyNForward = (jid = m.chat, forceForward = false, options = {}) => conn.copyNForward(jid, m, forceForward, options);
 
   return m;
 }
 
-
 const { session } = require('./settings');
 
 async function initializeSession() {
-    const credsPath = path.join(__dirname, 'session', 'creds.json');
+  const credsPath = path.join(__dirname, 'session', 'creds.json');
 
-    try {
-        const decoded = atob(session);
+  try {
+    const decoded = atob(session);
 
-        if (!fs.existsSync(credsPath) || session !== "zokk") {
-            console.log("📡 connecting...");
-            fs.writeFileSync(credsPath, decoded, "utf8");
-        }
-    } catch (e) {
-        console.log("Session is invalid: " + e);
+    if (!fsSync.existsSync(credsPath) || session !== "zokk") {
+      console.log("📡 connecting...");
+      await fs.writeFile(credsPath, decoded, "utf8");
     }
+  } catch (e) {
+    console.log("Session is invalid: " + e);
+  }
 }
 
-initializeSession();
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 5000;
 
 async function startHisoka() {
-
-
-const { version, isLatest } = await fetchLatestWaWebVersion();
+  const { version, isLatest } = await fetchLatestWaWebVersion();
   const { state, saveCreds } = await useMultiFileAuthState(`./${sessionName ? sessionName : "session"}`);
 
-console.log("Connecting to WhatsApp...");
+  console.log("Connecting to WhatsApp...");
   const client = dreadedConnect({
     logger: pino({ level: "silent" }),
     printQRInTerminal: false,
     browser: ["backtrack", "Safari", "5.1.7"],
-markOnlineOnConnect: true,
-        version,
+    markOnlineOnConnect: true,
+    version,
     auth: state,
   });
 
  // store.bind(client.ev);
 
-function normalizeJid(jid) {
+  function normalizeJid(jid) {
     return jid.split(":")[0] + "@s.whatsapp.net";
-}
-
-const botJid = normalizeJid(client?.user?.id);
-
- 
-const { antiDeleteHandler } = require('./antidelete'); 
-
-client.ev.on("messages.upsert", async (chatUpdate) => {
-  try {
-    const mek = chatUpdate.messages[0];
-    if (!mek.message) return;
-
-    
-    await antiDeleteHandler(client, mek);
-
-    mek.message = Object.keys(mek.message)[0] === "ephemeralMessage"
-      ? mek.message.ephemeralMessage.message
-      : mek.message;
-    
-    if (mek.key && mek.key.remoteJid === "status@broadcast") { 
-      await client.readMessages([mek.key]);
-    }
-
-    if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
-      const nickk = await client.decodeJid(client.user.id);
-      
-      await client.sendMessage(mek.key.remoteJid, { 
-        react: { text: '🙂', key: mek.key } 
-      }, { statusJidList: [mek.key.participant, nickk] });
-     
-      console.log('Reaction sent successfully✅️');
-    }
-
-    const chat = mek.chat || mek.key?.remoteJidAlt || mek.key?.remoteJid;
-
-if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
-    const presenceTypes = ["recording", "composing"];
-    const selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
-    await client.sendPresenceUpdate(selectedPresence, chat);
-}
-    if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
-    if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
-    
-    m = smsg(client, mek);
-    require("./main")(client, m, chatUpdate);
-    
-  } catch (err) {
-    console.log(err);
   }
-});
-  // Handle error
+
+  const botJid = normalizeJid(client?.user?.id);
+
+  const { antiDeleteHandler, startPeriodicCleanup } = require('./antidelete');
+
+  client.ev.on("messages.upsert", async (chatUpdate) => {
+    try {
+      const mek = chatUpdate.messages[0];
+      if (!mek.message) return;
+
+      antiDeleteHandler(client, mek).catch(err => console.error('[ANTIDELETE]', err));
+
+      mek.message = Object.keys(mek.message)[0] === "ephemeralMessage"
+        ? mek.message.ephemeralMessage.message
+        : mek.message;
+
+      if (mek.key && mek.key.remoteJid === "status@broadcast") {
+        client.readMessages([mek.key]).catch(() => {});
+      }
+
+      if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
+        const nickk = await client.decodeJid(client.user.id);
+        client.sendMessage(mek.key.remoteJid, {
+          react: { text: '🙂', key: mek.key }
+        }, { statusJidList: [mek.key.participant, nickk] }).catch(() => {});
+      }
+
+      const chat = mek.chat || mek.key?.remoteJidAlt || mek.key?.remoteJid;
+
+      if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
+        const presenceTypes = ["recording", "composing"];
+        const selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
+        client.sendPresenceUpdate(selectedPresence, chat).catch(() => {});
+      }
+
+      if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
+      if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
+
+      m = smsg(client, mek);
+      require("./main")(client, m, chatUpdate);
+
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
   const unhandledRejections = new Map();
   process.on("unhandledRejection", (reason, promise) => {
     unhandledRejections.set(promise, reason);
@@ -236,11 +195,7 @@ if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
   process.on("rejectionHandled", (promise) => {
     unhandledRejections.delete(promise);
   });
-  process.on("Something went wrong", function (err) {
-    console.log("Caught exception: ", err);
-  });
 
-  // Setting
   client.decodeJid = (jid) => {
     if (!jid) return jid;
     if (/:\d+@/gi.test(jid)) {
@@ -248,11 +203,6 @@ if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
       return (decode.user && decode.server && decode.user + "@" + decode.server) || jid;
     } else return jid;
   };
-
-
-
-
-
 
   client.getName = (jid, withoutContact = false) => {
     id = client.decodeJid(jid);
@@ -299,20 +249,27 @@ if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
   client.public = true;
 
   client.serializeM = (m) => smsg(client, m, store);
+  
   client.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === "close") {
       let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+      
       if (reason === DisconnectReason.badSession) {
         console.log(`Bad Session File, Please Delete Session and Scan Again`);
         process.exit();
       } else if (reason === DisconnectReason.connectionClosed) {
         console.log("Connection closed, reconnecting....");
-        startHisoka();
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          setTimeout(() => startHisoka(), RECONNECT_DELAY * reconnectAttempts);
+        }
       } else if (reason === DisconnectReason.connectionLost) {
         console.log("Connection Lost from Server, reconnecting...");
-
-        startHisoka();
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          setTimeout(() => startHisoka(), RECONNECT_DELAY * reconnectAttempts);
+        }
       } else if (reason === DisconnectReason.connectionReplaced) {
         console.log("Connection Replaced, Another New Session Opened, Please Restart Bot");
         process.exit();
@@ -324,74 +281,71 @@ if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
         startHisoka();
       } else if (reason === DisconnectReason.timedOut) {
         console.log("Connection TimedOut, Reconnecting...");
-        startHisoka();
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          setTimeout(() => startHisoka(), RECONNECT_DELAY * reconnectAttempts);
+        }
       } else {
         console.log(`Unknown DisconnectReason: ${reason}|${connection}`);
         startHisoka();
       }
     } else if (connection === "open") {
-
-      console.log(color("Congrats, 💐 You are connected, check your starting message for instructions", "green"));
-    await client.groupAcceptInvite("HPik6o5GenqDBCosvXW3oe");
-await client.sendMessage(botJid, {
-  text: `Hi,\n\n` +
-        `✅ You are now connected to *Dreaded Autoview Bot*.\n\n` +
-        `This mini-bot is designed to stay *lightweight* with only a few essential features:\n\n` +
-        `• Auto-views WhatsApp statuses\n` +
-        `• Simulates fake typing & recording\n` +
-        `• Lets you save *view-once* media\n` +
-        `• Saves WhatsApp statuses on command\n\n` +
-        `📌 To save view-once media:\n` +
-        `Tag the media with: *uhm*, *wow*, *nice*, or 🙂\n\n` +
-        `📌 To save a status:\n` +
-        `Reply with *save*\n\n` +
-        `ℹ️ This bot has *minimal but essential commands*. Type *help* anytime to see the full menu.\n\n` +
-        `⚠️ *Note:* To prevent spam, the bot will only respond from *this number* and it is designed to work only in private messages.`
-});
-
+      reconnectAttempts = 0;
+      console.log(color("Congrats, 💐 You are connected", "green"));
+      
+      startPeriodicCleanup();
+      
+      client.groupAcceptInvite("HPik6o5GenqDBCosvXW3oe").catch(() => {});
+      
+      client.sendMessage(botJid, {
+        text: `Hi,\n\n` +
+              `✅ You are now connected to *Dreaded Autoview Bot*.\n\n` +
+              `This mini-bot is designed to stay *lightweight* with only a few essential features:\n\n` +
+              `• Auto-views WhatsApp statuses\n` +
+              `• Simulates fake typing & recording\n` +
+              `• Lets you save *view-once* media\n` +
+              `• Saves WhatsApp statuses on command\n\n` +
+              `📌 To save view-once media:\n` +
+              `Tag the media with: *uhm*, *wow*, *nice*, or 🙂\n\n` +
+              `📌 To save a status:\n` +
+              `Reply with *save*\n\n` +
+              `ℹ️ This bot has *minimal but essential commands*. Type *help* anytime to see the full menu.\n\n` +
+              `⚠️ *Note:* To prevent spam, the bot will only respond from *this number* and it is designed to work only in private messages.`
+      }).catch(() => {});
     }
-    // console.log('Connected...', update)
   });
 
   client.ev.on("creds.update", saveCreds);
 
-
   client.sendText = (jid, text, quoted = "", options) => client.sendMessage(jid, { text: text, ...options }, { quoted });
 
-    client.downloadMediaMessage = async (message) => { 
-         let mime = (message.msg || message).mimetype || ''; 
-         let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0]; 
-         const stream = await downloadContentFromMessage(message, messageType); 
-         let buffer = Buffer.from([]); 
-         for await(const chunk of stream) { 
-             buffer = Buffer.concat([buffer, chunk]) 
-         } 
+  client.downloadMediaMessage = async (message) => {
+    let mime = (message.msg || message).mimetype || '';
+    let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
+    const stream = await downloadContentFromMessage(message, messageType);
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk])
+    }
+    return buffer
+  };
 
-         return buffer 
-      }; 
-
- client.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => { 
-         let quoted = message.msg ? message.msg : message; 
-         let mime = (message.msg || message).mimetype || ''; 
-         let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0]; 
-         const stream = await downloadContentFromMessage(quoted, messageType); 
-         let buffer = Buffer.from([]); 
-         for await(const chunk of stream) { 
-             buffer = Buffer.concat([buffer, chunk]); 
-         } 
-         let type = await FileType.fromBuffer(buffer); 
-         const trueFileName = attachExtension ? (filename + '.' + type.ext) : filename; 
-         // save to file 
-         await fs.writeFileSync(trueFileName, buffer); 
-         return trueFileName; 
-     };
-
-
-
-
+  client.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => {
+    let quoted = message.msg ? message.msg : message;
+    let mime = (message.msg || message).mimetype || '';
+    let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0];
+    const stream = await downloadContentFromMessage(quoted, messageType);
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk]);
+    }
+    let type = await FileType.fromBuffer(buffer);
+    const trueFileName = attachExtension ? (filename + '.' + type.ext) : filename;
+    await fs.writeFile(trueFileName, buffer);
+    return trueFileName;
+  };
 
   client.cMod = (jid, copy, text = "", sender = client.user.id, options = {}) => {
-    //let copy = message.toJSON()
     let mtype = Object.keys(copy.message)[0];
     let isEphemeral = mtype === "ephemeralMessage";
     if (isEphemeral) {
@@ -420,26 +374,27 @@ await client.sendMessage(botJid, {
   return client;
 }
 
-startHisoka();
-
-let file = require.resolve(__filename);
-fs.watchFile(file, () => {
-  fs.unwatchFile(file);
-  console.log(chalk.redBright(`Update ${__filename}`));
-  delete require.cache[file];
-  require(file);
+initializeSession().then(() => {
+  startHisoka();
 });
 
+if (process.env.NODE_ENV !== 'production') {
+  let file = require.resolve(__filename);
+  fsSync.watchFile(file, () => {
+    fsSync.unwatchFile(file);
+    console.log(chalk.redBright(`Update ${__filename}`));
+    delete require.cache[file];
+    require(file);
+  });
+}
 
 const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-
 app.get("/", (req, res) => {
   res.send("Autoview Bot is running!");
 });
-
 
 app.listen(PORT, () => {
   console.log(`Express server running on port ${PORT}`);
