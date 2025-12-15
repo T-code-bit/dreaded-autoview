@@ -97,16 +97,7 @@ function formatDeleteNotification(originalMsg, deleteMsg) {
   } else if (type === 'group') {
     title = 'DELETED GROUP MESSAGE';
     locationInfo = '👥 Group';
-console.log('🧪 GROUP DELETE DEBUG (sender fields):', {
-    sender: originalMsg.sender,
-    participant: originalMsg.participant,
-    keyParticipant: originalMsg.key?.participant,
-    participantAlt: originalMsg.key?.participantAlt,
-    remoteJid: originalMsg.key?.remoteJid
-  });
 
-  
-  console.log('🧪 FULL originalMsg OBJECT:', originalMsg);
   senderJid =
     originalMsg.sender || 
     originalMsg.key?.participantAlt ||
