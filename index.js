@@ -181,17 +181,15 @@ function normalizeJid(jid) {
 
 const botJid = normalizeJid(client?.user?.id);
 
-  // At the top of your file, import the antidelete module
-const { antiDeleteHandler } = require('./antidelete'); // Adjust path as needed
+ 
+const { antiDeleteHandler } = require('./antidelete'); 
 
 client.ev.on("messages.upsert", async (chatUpdate) => {
   try {
     const mek = chatUpdate.messages[0];
     if (!mek.message) return;
 
-    // ============================================
-    // ANTIDELETE: Handle message saving and deletion detection
-    // ============================================
+    
     await antiDeleteHandler(client, mek);
 
     mek.message = Object.keys(mek.message)[0] === "ephemeralMessage"
