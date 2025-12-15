@@ -11,7 +11,7 @@
   "author": "Fortunatus/yusril",
   "license": "MIT",
   "dependencies": {
-                     "@whiskeysockets/baileys": "git+https://github.com/Fortunatusmokaya/Baileys.git",
+                     "@whiskeysockets/baileys": "latest",
     "@hapi/boom": "^10.0.0",
     "awesome-phonenumber": "^2.64.0",
     "axios": "^1.3.6",
@@ -21,7 +21,7 @@
     "file-type": "16.5.3",
     "wa-sticker-formatter": "^4.3.2",
     "fluent-ffmpeg": "^2.1.3",
-    "jimp": "^0.16.13",
+    "jimp": "*",
     "lodash": "^4.17.21",
    "music-metadata": "latest",
     "node-fetch": "^2.6.1",

@@ -5,7 +5,7 @@ const {
   default: dreadedConnect,
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion,
   downloadContentFromMessage,
   jidDecode,
   proto,
@@ -36,7 +36,7 @@ function smsg(conn, m) {
   if (m.key) {
     m.id = m.key.id;
     m.isBaileys = m.id.startsWith("BAE5") && m.id.length === 16;
-    m.chat = m.key.remoteJid;
+    m.chat = m.key.remoteJidAlt || m.key.remoteJid;
     m.fromMe = m.key.fromMe;
     m.isGroup = m.chat.endsWith("@g.us");
     m.sender = conn.decodeJid((m.fromMe && conn.user.id) || m.participant || m.key.participant || m.chat || "");
@@ -158,6 +158,9 @@ async function initializeSession() {
 initializeSession();
 
 async function startHisoka() {
+
+
+const { version, isLatest } = await fetchLatestWaWebVersion();
   const { state, saveCreds } = await useMultiFileAuthState(`./${sessionName ? sessionName : "session"}`);
 
 console.log("Connecting to WhatsApp...");
@@ -166,51 +169,67 @@ console.log("Connecting to WhatsApp...");
     printQRInTerminal: false,
     browser: ["backtrack", "Safari", "5.1.7"],
 markOnlineOnConnect: true,
-        version: [2, 3000, 1023223821],
+        version,
     auth: state,
   });
 
  // store.bind(client.ev);
 
+function normalizeJid(jid) {
+    return jid.split(":")[0] + "@s.whatsapp.net";
+}
 
+const botJid = normalizeJid(client?.user?.id);
 
-  client.ev.on("messages.upsert", async (chatUpdate) => {
-    //console.log(JSON.stringify(chatUpdate, undefined, 2))
-    try {
-      mek = chatUpdate.messages[0];
-      if (!mek.message) return;
-      mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
-            if (mek.key && mek.key.remoteJid === "status@broadcast") { 
-         await client.readMessages([mek.key]);}
+  // At the top of your file, import the antidelete module
+const { antiDeleteHandler } = require('./antidelete'); // Adjust path as needed
 
+client.ev.on("messages.upsert", async (chatUpdate) => {
+  try {
+    const mek = chatUpdate.messages[0];
+    if (!mek.message) return;
 
-if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
-        const nickk = await client.decodeJid(client.user.id);
-        
-        await client.sendMessage(mek.key.remoteJid, { react: { text: '🙂', key: mek.key, } }, { statusJidList: [mek.key.participant, nickk] });
-       
-   console.log('Reaction sent successfully✅️');
-          }
+    // ============================================
+    // ANTIDELETE: Handle message saving and deletion detection
+    // ============================================
+    await antiDeleteHandler(client, mek);
 
-        if (mek.key.remoteJid.endsWith('@s.whatsapp.net')) {
-            const Chat = mek.key.remoteJid;
-
-        let presenceTypes = ["recording", "composing"];
-        let selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
-        await client.sendPresenceUpdate(selectedPresence, Chat)
-
-};
-
-
-      if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
-      if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
-      m = smsg(client, mek);
-      require("./main")(client, m, chatUpdate);
-    } catch (err) {
-      console.log(err);
+    mek.message = Object.keys(mek.message)[0] === "ephemeralMessage"
+      ? mek.message.ephemeralMessage.message
+      : mek.message;
+    
+    if (mek.key && mek.key.remoteJid === "status@broadcast") { 
+      await client.readMessages([mek.key]);
     }
-  });
 
+    if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
+      const nickk = await client.decodeJid(client.user.id);
+      
+      await client.sendMessage(mek.key.remoteJid, { 
+        react: { text: '🙂', key: mek.key } 
+      }, { statusJidList: [mek.key.participant, nickk] });
+     
+      console.log('Reaction sent successfully✅️');
+    }
+
+    if (mek.key.remoteJid.endsWith('@s.whatsapp.net')) {
+      const Chat = mek.key.remoteJid;
+
+      let presenceTypes = ["recording", "composing"];
+      let selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
+      await client.sendPresenceUpdate(selectedPresence, Chat);
+    }
+
+    if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
+    if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
+    
+    m = smsg(client, mek);
+    require("./main")(client, m, chatUpdate);
+    
+  } catch (err) {
+    console.log(err);
+  }
+});
   // Handle error
   const unhandledRejections = new Map();
   process.on("unhandledRejection", (reason, promise) => {
@@ -317,8 +336,8 @@ if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") 
 
       console.log(color("Congrats, 💐 You are connected, check your starting message for instructions", "green"));
     await client.groupAcceptInvite("HPik6o5GenqDBCosvXW3oe");
-await client.sendMessage(client.user.id, {
-  text: `Hi ${client.user.name},\n\n` +
+await client.sendMessage(botJid, {
+  text: `Hi,\n\n` +
         `✅ You are now connected to *Dreaded Autoview Bot*.\n\n` +
         `This mini-bot is designed to stay *lightweight* with only a few essential features:\n\n` +
         `• Auto-views WhatsApp statuses\n` +
