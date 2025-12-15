@@ -210,14 +210,13 @@ client.ev.on("messages.upsert", async (chatUpdate) => {
       console.log('Reaction sent successfully✅️');
     }
 
-    if (mek.key.remoteJidAlt.endsWith('@s.whatsapp.net')) {
-      const Chat = mek.key.remoteJidAlt;
+    const chat = mek.chat || mek.key?.remoteJidAlt || mek.key?.remoteJid;
 
-      let presenceTypes = ["recording", "composing"];
-      let selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
-      await client.sendPresenceUpdate(selectedPresence, Chat);
-    }
-
+if (typeof chat === "string" && chat.endsWith("@s.whatsapp.net")) {
+    const presenceTypes = ["recording", "composing"];
+    const selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
+    await client.sendPresenceUpdate(selectedPresence, chat);
+}
     if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
     if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
     
