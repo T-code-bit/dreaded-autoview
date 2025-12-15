@@ -132,6 +132,10 @@ async function startHisoka() {
     printQRInTerminal: false,
     browser: ["backtrack", "Safari", "5.1.7"],
     markOnlineOnConnect: true,
+        fireInitQueries: false,
+        shouldSyncHistoryMessage: false,
+        downloadHistory: false,
+        syncFullHistory: false,
     version,
     auth: state,
   });
