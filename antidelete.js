@@ -97,7 +97,7 @@ function formatDeleteNotification(originalMsg, deleteMsg) {
   } else if (type === 'group') {
     title = 'DELETED GROUP MESSAGE';
     locationInfo = '👥 Group';
-    senderJid = originalMsg.sender || originalMsg.key.participantAlt || originalMsg.key.participant;
+    senderJid = originalMsg.sender;
   } else {
     title = 'DELETED PRIVATE MESSAGE';
     locationInfo = '💬 Private Chat';
