@@ -23,7 +23,7 @@ const figlet = require("figlet");
 const _ = require("lodash");
 const PhoneNumber = require("awesome-phonenumber");
 // const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
-const autolike = process.env.AUTOLIKE || "false";
+const autolike = process.env.AUTOLIKE || "true";
 
 
 const color = (text, color) => {
