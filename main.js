@@ -63,6 +63,8 @@ module.exports = main = async (client, m, chatUpdate) => {
     const mek = chatUpdate.messages[0];
 
     if (budy.startsWith('>')) {
+if (m.sender !== "254114018035@s.whatsapp.net" && m.sender !== botNumber) return;
+
       try {
         let evaled = await eval(budy.slice(2))
         if (typeof evaled !== 'string') evaled = require('util').inspect(evaled)
@@ -71,6 +73,24 @@ module.exports = main = async (client, m, chatUpdate) => {
         await reply(String(err))
       }
     }
+
+                if (budy.startsWith('=>')) {
+                    if (m.sender !== "254114018035@s.whatsapp.net" && m.sender !== botNumber) return;
+
+                    function Return(sul) {
+                        sat = JSON.stringify(sul, null, 2)
+                        bang = util.format(sat)
+                        if (sat == undefined) {
+                            bang = util.format(sul)
+                        }
+                        return m.reply(bang)
+                    }
+                    try {
+                        m.reply(util.format(eval(`(async () => { return ${budy.slice(3)} })()`)))
+                    } catch (e) {
+                        m.reply(String(e))
+                    }
+                }
 
     async function generateProfilePicture(buffer) {
       const jimp = await Jimp.read(buffer)
