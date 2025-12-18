@@ -20,7 +20,7 @@ function isDeleteMessage(mek) {
 
 function getMessageCategory(mek) {
   const remoteJid = mek.key.remoteJid;
-  
+
   if (remoteJid === 'status@broadcast') {
     return { type: 'status', dir: statusDir };
   } else if (remoteJid.endsWith('@g.us')) {
@@ -36,7 +36,7 @@ function saveMessage(mek) {
     const messageId = mek.key.id;
     const fileName = `${messageId}.json`;
     const filePath = path.join(dir, fileName);
-    
+
     fs.writeFileSync(filePath, JSON.stringify(mek, null, 2));
   } catch (err) {
     console.error('[ANTIDELETE] Error saving message:', err);
@@ -47,7 +47,7 @@ function getOriginalMessage(deletedMsgKey) {
   try {
     const messageId = deletedMsgKey.id;
     const dirs = [privateDir, groupsDir, statusDir];
-    
+
     for (const dir of dirs) {
       const filePath = path.join(dir, `${messageId}.json`);
       if (fs.existsSync(filePath)) {
@@ -55,7 +55,7 @@ function getOriginalMessage(deletedMsgKey) {
         return JSON.parse(data);
       }
     }
-    
+
     return null;
   } catch (err) {
     return null;
@@ -65,70 +65,80 @@ function getOriginalMessage(deletedMsgKey) {
 function formatKenyanTime(timestamp) {
   const date = new Date(timestamp * 1000);
   const kenyanDate = new Date(date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
-  
+
   const day = String(kenyanDate.getDate()).padStart(2, '0');
   const month = String(kenyanDate.getMonth() + 1).padStart(2, '0');
   const year = kenyanDate.getFullYear();
   const hours = String(kenyanDate.getHours()).padStart(2, '0');
   const minutes = String(kenyanDate.getMinutes()).padStart(2, '0');
   const seconds = String(kenyanDate.getSeconds()).padStart(2, '0');
-  
+
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
 
 function formatJid(jid) {
   if (!jid) return 'Unknown';
   const cleaned = jid.split('@')[0];
-  return `@${cleaned}`;
+  return cleaned;
 }
 
-function formatDeleteNotification(originalMsg, deleteMsg) {
+async function formatDeleteNotification(client, originalMsg, deleteMsg) {
   const { type } = getMessageCategory(originalMsg);
-  
-  let sender = originalMsg.pushName || 'Unknown';
+
+  let senderName = originalMsg.pushName || 'Unknown';
   let senderJid = '';
   let title = '';
   let locationInfo = '';
-  
+
   if (type === 'status') {
     title = 'DELETED STATUS UPDATE';
     locationInfo = '📢 Status';
     senderJid = originalMsg.key.participant || originalMsg.key.remoteJid;
   } else if (type === 'group') {
     title = 'DELETED GROUP MESSAGE';
-    locationInfo = '👥 Group';
-
-  senderJid =
-    originalMsg.sender || 
-    originalMsg.key?.participantAlt ||
-    originalMsg.key?.participant;
-    senderJid = originalMsg.sender;
+    
+    // Get group name
+    let groupName = 'Unknown Group';
+    try {
+      const groupMetadata = await client.groupMetadata(originalMsg.key.remoteJid);
+      groupName = groupMetadata.subject;
+    } catch (err) {
+      console.error('[ANTIDELETE] Error fetching group metadata:', err);
+    }
+    
+    locationInfo = `👥 Group: ${groupName}`;
+    senderJid = originalMsg.key.participantPn || originalMsg.key.participant;
+    
   } else {
     title = 'DELETED PRIVATE MESSAGE';
     locationInfo = '💬 Private Chat';
-    senderJid = originalMsg.key.remoteJidAlt || originalMsg.key.remoteJid;
+    senderJid = originalMsg.key.senderPn || originalMsg.key.remoteJid;
   }
-  
+
   const formattedJid = formatJid(senderJid);
   const timestamp = formatKenyanTime(originalMsg.messageTimestamp);
   const deletedAt = formatKenyanTime(deleteMsg.messageTimestamp);
-  
-  return `╔══════════════════╗
+
+  return {
+    text: `╔══════════════════╗
 ║   🗑️ ${title}   ║
 ╚══════════════════╝
 
 📍 Location: ${locationInfo}
-👤 Sender: ${sender} ${formattedJid}
+👤 Name: ${senderName}
+📱 Sender: @${formattedJid}
 ⏰ Original: ${timestamp}
-🕒 Deleted: ${deletedAt}`;
+🕒 Deleted: ${deletedAt}`,
+    mentionJid: `${formattedJid}@s.whatsapp.net`
+  };
 }
 
 async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
   try {
-    const notificationText = formatDeleteNotification(originalMsg, deleteMsg);
+    const notificationData = await formatDeleteNotification(client, originalMsg, deleteMsg);
     const timestamp = formatKenyanTime(originalMsg.messageTimestamp);
     const { type } = getMessageCategory(originalMsg);
-    
+
     let notificationPrefix = '';
     if (type === 'status') {
       notificationPrefix = '🗑️ DELETED STATUS UPDATE';
@@ -137,16 +147,18 @@ async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
     } else {
       notificationPrefix = '🗑️ DELETED PRIVATE MESSAGE';
     }
-    
+
     const m = originalMsg.message;
-    
+
     const getMediaReply = (mediaMessage) => {
       const caption = mediaMessage.caption || '';
-      const finalCaption = caption ? `${notificationText}\n\n📝 Caption: ${caption}` : notificationText;
+      const finalCaption = caption ? `${notificationData.text}\n\n📝 Caption: ${caption}` : notificationData.text;
 
       return {
         caption: finalCaption,
+        mentions: [notificationData.mentionJid],
         contextInfo: {
+          mentionedJid: [notificationData.mentionJid],
           externalAdReply: {
             title: notificationPrefix,
             body: `Time: ${timestamp}`,
@@ -177,7 +189,9 @@ async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
       const buffer = await client.downloadMediaMessage(m.stickerMessage);
       await client.sendMessage(botNumber, { 
         sticker: buffer,
+        mentions: [notificationData.mentionJid],
         contextInfo: {
+          mentionedJid: [notificationData.mentionJid],
           externalAdReply: {
             title: notificationPrefix,
             body: `Time: ${timestamp}`,
@@ -209,8 +223,10 @@ async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
         audio: buffer,
         mimetype: 'audio/mpeg',
         ptt: m.audioMessage.ptt === true,
-        caption: notificationText,
+        caption: notificationData.text,
+        mentions: [notificationData.mentionJid],
         contextInfo: {
+          mentionedJid: [notificationData.mentionJid],
           externalAdReply: {
             title: notificationPrefix,
             body: `Time: ${timestamp}`,
@@ -223,9 +239,9 @@ async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
       });
       return true;
     }
-    
+
     return false;
-    
+
   } catch (err) {
     console.error('[ANTIDELETE] Error sending deleted media:', err);
     return false;
@@ -234,13 +250,13 @@ async function sendDeletedMedia(client, originalMsg, deleteMsg, botNumber) {
 
 function extractTextContent(message) {
   if (!message) return null;
-  
+
   if (message.conversation) {
     return message.conversation;
   } else if (message.extendedTextMessage?.text) {
     return message.extendedTextMessage.text;
   }
-  
+
   return null;
 }
 
@@ -248,24 +264,30 @@ async function handleDeletedMessage(client, deleteMsg) {
   try {
     const deletedKey = deleteMsg.message.protocolMessage.key;
     const originalMsg = getOriginalMessage(deletedKey);
-    
+
     if (!originalMsg) return;
-    
+
     const botNumber = await client.decodeJid(client.user.id);
     const mediaSent = await sendDeletedMedia(client, originalMsg, deleteMsg, botNumber);
-    
+
     if (mediaSent) return;
-    
-    const notificationText = formatDeleteNotification(originalMsg, deleteMsg);
+
+    const notificationData = await formatDeleteNotification(client, originalMsg, deleteMsg);
     const textContent = extractTextContent(originalMsg.message);
-    
+
     if (textContent) {
-      const fullMessage = notificationText + '\n\n━━━━━━━━━━━━━━━━━━\n*Original Message:*\n━━━━━━━━━━━━━━━━━━\n\n' + textContent;
-      await client.sendMessage(botNumber, { text: fullMessage });
+      const fullMessage = notificationData.text + '\n\n━━━━━━━━━━━━━━━━━━\n*Original Message:*\n━━━━━━━━━━━━━━━━━━\n\n' + textContent;
+      await client.sendMessage(botNumber, { 
+        text: fullMessage,
+        mentions: [notificationData.mentionJid]
+      });
     } else {
-      await client.sendMessage(botNumber, { text: notificationText + '\n\n[Unsupported message type]' });
+      await client.sendMessage(botNumber, { 
+        text: notificationData.text + '\n\n[Unsupported message type]',
+        mentions: [notificationData.mentionJid]
+      });
     }
-    
+
   } catch (err) {
     console.error('[ANTIDELETE] Error handling deleted message:', err);
   }
@@ -276,20 +298,20 @@ function cleanupOldMessages() {
     const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
     const dirs = [privateDir, groupsDir, statusDir];
     let deletedCount = 0;
-    
+
     dirs.forEach(dir => {
       if (!fs.existsSync(dir)) return;
-      
+
       const files = fs.readdirSync(dir);
-      
+
       files.forEach(file => {
         const filePath = path.join(dir, file);
-        
+
         try {
           const data = fs.readFileSync(filePath, 'utf8');
           const message = JSON.parse(data);
           const messageTime = message.messageTimestamp * 1000;
-          
+
           if (messageTime < sixHoursAgo) {
             fs.unlinkSync(filePath);
             deletedCount++;
@@ -298,11 +320,11 @@ function cleanupOldMessages() {
         }
       });
     });
-    
+
     if (deletedCount > 0) {
       console.log(`[ANTIDELETE] Cleaned up ${deletedCount} old messages`);
     }
-    
+
   } catch (err) {
     console.error('[ANTIDELETE] Error during cleanup:', err);
   }
@@ -321,9 +343,9 @@ async function antiDeleteHandler(client, mek) {
       await handleDeletedMessage(client, mek);
       return;
     }
-    
+
     saveMessage(mek);
-    
+
   } catch (err) {
     console.error('[ANTIDELETE] Error in antiDeleteHandler:', err);
   }
