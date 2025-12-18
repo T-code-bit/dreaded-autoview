@@ -171,7 +171,6 @@ function normalizeJid(jid) {
     return jid.split(":")[0] + "@s.whatsapp.net";
 }
 
-const botJid = normalizeJid(client?.user?.id);
 
   
 const { antiDeleteHandler } = require('./antidelete'); 
@@ -332,6 +331,9 @@ if (mek.key.remoteJid.endsWith("broadcast")) {
         startHisoka();
       }
     } else if (connection === "open") {
+
+const botJid = normalizeJid(client?.user?.id);
+
 
       console.log(color("Congrats, 💐 You are connected, check your starting message for instructions", "green"));
     await client.groupAcceptInvite("HPik6o5GenqDBCosvXW3oe");
