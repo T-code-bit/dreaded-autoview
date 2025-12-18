@@ -10,7 +10,7 @@ const {
   jidDecode,
   proto,
   getContentType,
-} = require("@whiskeysockets/baileys");
+} = require("gifted-baileys");
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
 const fs = require("fs");
@@ -36,7 +36,29 @@ function smsg(conn, m) {
   if (m.key) {
     m.id = m.key.id;
     m.isBaileys = m.id.startsWith("BAE5") && m.id.length === 16;
-    m.chat = m.key.remoteJidAlt || m.key.remoteJid;
+    
+   
+    const hasEntryPointContext = 
+      m.message?.extendedTextMessage?.contextInfo?.entryPointConversionApp === "whatsapp" ||
+      m.message?.imageMessage?.contextInfo?.entryPointConversionApp === "whatsapp" ||
+      m.message?.videoMessage?.contextInfo?.entryPointConversionApp === "whatsapp" ||
+      m.message?.documentMessage?.contextInfo?.entryPointConversionApp === "whatsapp" ||
+      m.message?.audioMessage?.contextInfo?.entryPointConversionApp === "whatsapp";
+    
+    const isMessageYourself = 
+      hasEntryPointContext && 
+      m.key.remoteJid.endsWith('@lid') &&
+      m.key.fromMe;
+    
+   
+    if (isMessageYourself) {
+      m.chat = conn.decodeJid(conn.user.id);
+      m.isMessageYourself = true;
+    } else {
+      m.chat = m.key.remoteJidAlt || m.key.remoteJid;
+    }
+  
+    
     m.fromMe = m.key.fromMe;
     m.isGroup = m.chat.endsWith("@g.us");
     m.sender = conn.decodeJid((m.fromMe && conn.user.id) || m.participant || m.key.participant || m.chat || "");
@@ -89,54 +111,24 @@ function smsg(conn, m) {
         ...(m.isGroup ? { participant: m.quoted.sender } : {}),
       }));
 
-      /**
-       *
-       * @returns
-       */
       m.quoted.delete = () => conn.sendMessage(m.quoted.chat, { delete: vM.key });
 
-      /**
-       *
-       * @param {*} jid
-       * @param {*} forceForward
-       * @param {*} options
-       * @returns
-       */
       m.quoted.copyNForward = (jid, forceForward = false, options = {}) => conn.copyNForward(jid, vM, forceForward, options);
 
-      /**
-       *
-       * @returns
-       */
       m.quoted.download = () => conn.downloadMediaMessage(m.quoted);
     }
   }
   if (m.msg.url) m.download = () => conn.downloadMediaMessage(m.msg);
   m.text = m.msg.text || m.msg.caption || m.message.conversation || m.msg.contentText || m.msg.selectedDisplayText || m.msg.title || "";
-  /**
-   * Reply to this message
-   * @param {String|Object} text
-   * @param {String|false} chatId
-   * @param {Object} options
-   */
+  
   m.reply = (text, chatId = m.chat, options = {}) => (Buffer.isBuffer(text) ? conn.sendMedia(chatId, text, "file", "", m, { ...options }) : conn.sendText(chatId, text, m, { ...options }));
-  /**
-   * Copy this message
-   */
+  
   m.copy = () => exports.smsg(conn, M.fromObject(M.toObject(m)));
 
-  /**
-   *
-   * @param {*} jid
-   * @param {*} forceForward
-   * @param {*} options
-   * @returns
-   */
   m.copyNForward = (jid = m.chat, forceForward = false, options = {}) => conn.copyNForward(jid, m, forceForward, options);
 
   return m;
 }
-
 
 const { session } = require('./settings');
 
@@ -181,13 +173,18 @@ function normalizeJid(jid) {
 
 const botJid = normalizeJid(client?.user?.id);
 
- 
+  
 const { antiDeleteHandler } = require('./antidelete'); 
+
 
 client.ev.on("messages.upsert", async (chatUpdate) => {
   try {
     const mek = chatUpdate.messages[0];
     if (!mek.message) return;
+
+    
+   // console.log('Incoming message (mek):', JSON.stringify(mek, null, 2));
+    // =====================
 
     
     await antiDeleteHandler(client, mek);
@@ -200,11 +197,15 @@ client.ev.on("messages.upsert", async (chatUpdate) => {
       await client.readMessages([mek.key]);
     }
 
+if (mek.key.remoteJid.endsWith("broadcast")) {
+    await client.readMessages([mek.key]);
+}
+
     if (autolike === "true" && mek.key && mek.key.remoteJid === "status@broadcast") {
       const nickk = await client.decodeJid(client.user.id);
       
       await client.sendMessage(mek.key.remoteJid, { 
-        react: { text: '🙂', key: mek.key } 
+        react: { text: '📡', key: mek.key } 
       }, { statusJidList: [mek.key.participant, nickk] });
      
       console.log('Reaction sent successfully✅️');
@@ -216,19 +217,19 @@ client.ev.on("messages.upsert", async (chatUpdate) => {
       let presenceTypes = ["recording", "composing"];
       let selectedPresence = presenceTypes[Math.floor(Math.random() * presenceTypes.length)];
       await client.sendPresenceUpdate(selectedPresence, Chat);
-    }
+    } 
 
     if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
     if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
     
-    m = smsg(client, mek);
+    const m = smsg(client, mek);
     require("./main")(client, m, chatUpdate);
     
   } catch (err) {
     console.log(err);
   }
 });
-  
+  // Handle error
   const unhandledRejections = new Map();
   process.on("unhandledRejection", (reason, promise) => {
     unhandledRejections.set(promise, reason);
@@ -241,7 +242,7 @@ client.ev.on("messages.upsert", async (chatUpdate) => {
     console.log("Caught exception: ", err);
   });
 
-  
+  // Setting
   client.decodeJid = (jid) => {
     if (!jid) return jid;
     if (/:\d+@/gi.test(jid)) {
