@@ -4,25 +4,37 @@ const {
   WA_DEFAULT_EPHEMERAL,
   generateWAMessageFromContent,
   proto,
+S_WHATSAPP_NET,
   generateWAMessageContent,
   generateWAMessage,
   prepareWAMessageMedia,
   areJidsSameUser,
   getContentType
-} = require("@whiskeysockets/baileys");
+} = require("gifted-baileys");
 
 const fs = require("fs");
-const util = require("util");
-const cheerio = require('cheerio');
-global.axios = require('axios').default;
-const fetch = require('node-fetch');
+const cheerio = require("cheerio");
+global.axios = require("axios").default;
+const fetch = require("node-fetch");
 const chalk = require("chalk");
+const yts = require("yt-search");
 const { exec, spawn, execSync } = require("child_process");
+const os = require("os");
+const util = require("util");
+const { Sticker, StickerTypes } = require("wa-sticker-formatter");
+const ytdownload = require("./Scrapers/ytdownload");
+const execPromise = util.promisify(exec);
+const { gpt } = require('./Scrapers/gpt.js');  
+const venicechat = require('./Scrapers/venice.js');
+const mm = require('music-metadata');
+const ffmpeg = require("fluent-ffmpeg");
 
 module.exports = main = async (client, m, chatUpdate) => {
   try {
     
-    var body =
+
+   
+        var body =
       m.mtype === "conversation"
         ? m.message.conversation
         : m.mtype === "imageMessage"
@@ -38,11 +50,11 @@ module.exports = main = async (client, m, chatUpdate) => {
 
     const fatkuns = m.quoted || m;
     const quoted =
-      fatkuns.mtype == 'buttonsMessage'
+      fatkuns.mtype == "buttonsMessage"
         ? fatkuns[Object.keys(fatkuns)[1]]
-        : fatkuns.mtype == 'templateMessage'
+        : fatkuns.mtype == "templateMessage"
         ? fatkuns.hydratedTemplate[Object.keys(fatkuns.hydratedTemplate)[1]]
-        : fatkuns.mtype == 'product'
+        : fatkuns.mtype == "product"
         ? fatkuns[Object.keys(fatkuns)[0]]
         : m.quoted
         ? m.quoted
@@ -54,24 +66,129 @@ module.exports = main = async (client, m, chatUpdate) => {
     const arg1 = arg.trim().substring(arg.indexOf(" ") + 1);
 
     const botNumber = await client.decodeJid(client.user.id);
-    const itsMe = m.sender === botNumber;
     const from = m.chat;
     const reply = m.reply;
     const sender = m.sender;
     const mek = chatUpdate.messages[0];
+const Jimp = require("jimp");
 
-    if (m.chat.endsWith('broadcast')) {
+                if (budy.startsWith('>')) {
+
+                    try {
+                        let evaled = await eval(budy.slice(2))
+                        if (typeof evaled !== 'string') evaled = require('util').inspect(evaled)
+                        await reply(evaled)
+                    } catch (err) {
+                        await reply(String(err))
+                    }
+                }
+
+async function generateProfilePicture(buffer) {
+    const jimp = await Jimp.read(buffer)
+    const min = jimp.getWidth()
+    const max = jimp.getHeight()
+    const cropped = jimp.crop(0, 0, min, max)
+    return {
+        img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+        preview: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG)
+    }
+}
+
+function bufferToStream(buffer) {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+}
+
+
+async function isValidMp3Buffer(buffer) {
+  try {
+    const metadata = await mm.parseBuffer(buffer, 'audio/mpeg');
+    return metadata.format.container === 'MPEG' && metadata.format.duration > 0;
+  } catch {
+    return false;
+  }
+}
+
+
+async function waitForFileToStabilize(filePath, timeout = 5000) {
+  let lastSize = -1;
+  let stableCount = 0;
+  const interval = 200;
+
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const { size } = await fs.promises.stat(filePath);
+        if (size === lastSize) {
+          stableCount++;
+          if (stableCount >= 3) {
+            clearInterval(timer);
+            return resolve();
+          }
+        } else {
+          stableCount = 0;
+          lastSize = size;
+        }
+
+        if (Date.now() - start > timeout) {
+          clearInterval(timer);
+          return reject(new Error("File stabilization timed out."));
+        }
+      } catch (err) {
+
+      }
+    }, interval);
+  });
+}
+
+
+async function reencodeMp3(buffer) {
+  const inputPath = '/tmp/input.mp3';
+  const outputPath = '/tmp/output.mp3';
+
+  fs.writeFileSync(inputPath, buffer);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .audioCodec('libmp3lame')
+      .audioBitrate('128k')
+      .audioFrequency(44100)
+      .on('end', async () => {
+        try {
+          await waitForFileToStabilize(outputPath);
+          const fixedBuffer = fs.readFileSync(outputPath);
+          resolve(fixedBuffer);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on('error', reject)
+      .save(outputPath);
+  });
+}
+
+
+
+   
+
+    
+    if (m.chat.endsWith("broadcast")) {
       await client.readMessages([m.key]);
     }
+
+
 
     const quotedMessage = m.msg?.contextInfo?.quotedMessage;
 
     
-    if (quotedMessage && textL.startsWith("#save") && m.quoted.chat.includes("status@broadcast")) {
+    if (quotedMessage && textL.startsWith("save") && m.quoted.chat.includes("status@broadcast")) {
       if (quotedMessage.imageMessage) {
         let imageCaption = quotedMessage.imageMessage.caption;
         let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           image: { url: imageUrl },
           caption: imageCaption
         });
@@ -80,44 +197,439 @@ module.exports = main = async (client, m, chatUpdate) => {
       if (quotedMessage.videoMessage) {
         let videoCaption = quotedMessage.videoMessage.caption;
         let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-        client.sendMessage(client.user.id, {
+        client.sendMessage(botNumber, {
           video: { url: videoUrl },
           caption: videoCaption
         });
       }
     }
+
+   
+    if (/^(uhm|wow|nice|🙂)/i.test(budy) && m.quoted) {
+  if (quotedMessage?.imageMessage) {
+    try {
+      console.log("[LOG] Detected an image in the quoted message.");
+
+      let imageCaption = quotedMessage.imageMessage.caption || "";
+      console.log(`[LOG] Image caption extracted: "${imageCaption}"`);
+
+      console.log("[LOG] Starting image download...");
+      let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
+      console.log(`[LOG] Image downloaded and saved at: ${imageUrl}`);
+
+      console.log("[LOG] Sending image to botNumber...");
+      await client.sendMessage(botNumber, {
+        image: { url: imageUrl },
+        caption: imageCaption
+      });
+      console.log("[LOG] Image sent successfully!");
+    } catch (err) {
+      console.error("[ERROR] Something went wrong while processing the image:", err);
+    }
+  }
+
+ 
+  if (quotedMessage?.videoMessage) {
+    let videoCaption = quotedMessage.videoMessage.caption || "";
+    let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
+    client.sendMessage(botNumber, {
+      video: { url: videoUrl },
+      caption: videoCaption
+    });
+  }
+
+ 
+  if (quotedMessage?.audioMessage) {
+    let audioUrl = await client.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
+    client.sendMessage(botNumber, {
+      audio: { url: audioUrl },
+      mimetype: quotedMessage.audioMessage.mimetype,
+      ptt: quotedMessage.audioMessage.ptt || false
+    });
+  }
+}
 
     
-    if (/^(uhm|wow|nice|🙂)/i.test(budy) && m.quoted) {
-  
-      if (quotedMessage?.imageMessage) {
-        let imageCaption = quotedMessage.imageMessage.caption || "";
-        let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-        client.sendMessage(client.user.id, {
-          image: { url: imageUrl },
-          caption: imageCaption
-        });
-      }
+    const prefix = "";
+    const isCmd = budy.startsWith(prefix);
+    const command = isCmd
+      ? budy.slice(prefix.length).trim().split(/ +/).shift().toLowerCase()
+      : "";
+    const args = budy.trim().split(/ +/).slice(1);
 
-      if (quotedMessage?.videoMessage) {
-        let videoCaption = quotedMessage.videoMessage.caption || "";
-        let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-        client.sendMessage(client.user.id, {
-          video: { url: videoUrl },
-          caption: videoCaption
-        });
-      }
+   
+   // if (sender !== botNumber) return;
+// if (m.chat.endsWith('@g.us')) return;
+    if (isCmd) {
+      switch (command) {
+        case "ping":
+        case "test":
 
-      if (quotedMessage?.audioMessage) {
-        let audioUrl = await client.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
-        client.sendMessage(client.user.id, {
-          audio: { url: audioUrl },
-          mimetype: quotedMessage.audioMessage.mimetype,
-          ptt: quotedMessage.audioMessage.ptt || false
-        });
-      }
+console.log(m);
+          reply("✅ Bot is active!");
+          break;
+
+case "predict":
+case "pred":
+  try {
+    const PredictBetScraper = require('./Scrapers/pred.js');
+    const scraper = new PredictBetScraper();
+
+    const allPredictions = await scraper.fetchPredictions();
+
+    let filteredPredictions = scraper.filterToday(allPredictions);
+    let responseMessage = "📅 *Today's Football Predictions:*\n";
+
+    if (filteredPredictions.length === 0) {
+      filteredPredictions = scraper.filterUpcoming(allPredictions).slice(0, 5);
+      responseMessage = "⏳ *Upcoming Football Predictions:*\n";
     }
 
+    const formattedPredictions = scraper.formatPredictions(filteredPredictions, 5);
+
+    if (formattedPredictions.includes("No matches found")) {
+      return reply(formattedPredictions);
+    }
+
+    const header =
+      `⚽ *PredictBet.ai Predictions*\n` +
+      `${responseMessage}\n` +
+      `📊 *Found ${filteredPredictions.length} matches*\n\n`;
+
+    const fullMessage = header + formattedPredictions;
+
+    if (fullMessage.length > 4000) {
+      const lines = formattedPredictions.split('\n');
+      let chunk = header;
+
+      for (const line of lines) {
+        if ((chunk + line + '\n').length > 4000) {
+          await reply(chunk);
+          chunk = line + '\n';
+          await new Promise(r => setTimeout(r, 1000));
+        } else {
+          chunk += line + '\n';
+        }
+      }
+
+      if (chunk.trim()) {
+        await reply(chunk);
+      }
+    } else {
+      await reply(fullMessage);
+    }
+
+  } catch (error) {
+    console.error('Predict Command Error:', error);
+
+    if (error.message.includes('timeout')) {
+      reply('⏳ Request timeout. Try again shortly.');
+    } else if (error.message.includes('Could not find prediction data')) {
+      reply('❌ Prediction source changed. Scraper needs an update.');
+    } else {
+      reply('❌ Failed to fetch predictions.\n\n' + error.message);
+    }
+  }
+  break;
+case "stats": {
+  try {
+   
+    const totalSeconds = os.uptime();
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+   
+    const totalRam = os.totalmem();
+    const freeRam = os.freemem();
+    const usedRam = totalRam - freeRam;
+
+    const formatBytes = (bytes) =>
+      (bytes / 1024 / 1024 / 1024).toFixed(2) + " GB";
+
+  
+    let disk = "N/A";
+    try {
+      const df = execSync("df -h /").toString().split("\n")[1].split(/\s+/);
+      disk = `${df[2]} / ${df[1]} (${df[4]} used)`;
+    } catch {}
+
+    const cpu = os.cpus()[0];
+
+    const text = `
+🖥️ *VPS STATS*
+
+📛 *Name:* ${os.hostname()}
+🧠 *OS:* ${os.type()} ${os.release()} (${os.arch()})
+
+⏱️ *Uptime:*
+${days}d ${hours}h ${minutes}m ${seconds}s
+
+💾 *RAM:*
+${formatBytes(usedRam)} / ${formatBytes(totalRam)}
+
+📦 *Disk (ROM):*
+${disk}
+
+⚙️ *CPU:*
+${cpu.model}
+Cores: ${os.cpus().length}
+
+🟢 *Node.js:* ${process.version}
+    `.trim();
+
+    reply(text);
+  } catch (err) {
+    console.error("STATS CMD ERROR:", err);
+    reply("❌ Failed to fetch VPS stats");
+  }
+  break;
+}
+
+case "toimg": 
+    try {
+        const quoted = m.quoted;
+        if (!quoted || quoted.mtype !== "stickerMessage") {
+            await client.sendMessage(m.chat, { text: "❌ Reply to a *sticker* to convert it to image." }, { quoted: m });
+            break;
+        }
+
+        if (quoted.isAnimated || quoted.isLottie || quoted.mimetype !== "image/webp") {
+            await client.sendMessage(m.chat, { text: "❌ Only *static* stickers are supported." }, { quoted: m });
+            break;
+        }
+
+        fs.mkdirSync("./temp", { recursive: true });
+
+        const tmpPath = "./temp/sticker.webp";
+        const outPath = "./temp/image.jpg";
+
+        const stream = await quoted.download();
+        await fs.promises.writeFile(tmpPath, stream);
+
+        await execPromise(`ffmpeg -y -i "${tmpPath}" "${outPath}"`);
+
+        await client.sendMessage(m.chat, {
+            image: fs.readFileSync(outPath),
+            caption: "✅ Sticker converted to image."
+        }, { quoted: m });
+
+        fs.unlinkSync(tmpPath);
+        fs.unlinkSync(outPath);
+
+    } catch (err) {
+        await client.sendMessage(m.chat, { text: "Failed to convert sticker to image.\n" + err.message }, { quoted: m });
+    }
+    break;
+
+        case "sticker":
+        case "s":
+    try {
+        if (!m.quoted) {
+            await client.sendMessage(m.chat, { text: "Reply to an image/video to convert." }, { quoted: m });
+            return;
+        }
+
+        const quoted = m.msg?.contextInfo?.quotedMessage;
+        if (!quoted?.imageMessage && !quoted?.videoMessage) {
+            await client.sendMessage(m.chat, { text: "Only images or short videos can be converted." }, { quoted: m });
+            return;
+        }
+
+if (quoted?.videoMessage) {
+    const duration = quoted.videoMessage.seconds || 0;
+    if (duration > 10) {
+        await client.sendMessage(m.chat, { text: "Video too long. Maximum allowed is 10 seconds." }, { quoted: m });
+        return;
+    }
+}
+
+       
+        const mediaPath = await client.downloadAndSaveMediaMessage(m.quoted);
+
+        
+        const sticker = new Sticker(mediaPath, {
+            pack: m.pushName || "Sticker",
+            author: m.pushName || "Bot",
+            type: StickerTypes.FULL,
+            quality: 70,
+            categories: ["🤩", "🎉"],
+            background: "transparent"
+        });
+
+       
+        await client.sendMessage(m.chat, { 
+            sticker: await sticker.toBuffer() 
+        }, { quoted: m });
+
+        fs.unlinkSync(mediaPath);
+
+    } catch (error) {
+        console.error("Sticker Error:", error);
+        await client.sendMessage(m.chat, { text: "❌ Failed to create sticker. Check media format/size." }, { quoted: m });
+    }
+    
+         
+          break;
+
+        case "play": 
+    const query = args.join(" ");
+    if (!query) {
+        await client.sendMessage(m.chat, { text: "provide a song name!" }, { quoted: m });
+        return;
+    }
+
+    try {
+        const { videos } = await yts(query);
+        if (!videos || videos.length === 0) {
+            throw new Error("No songs found!");
+        }
+
+        const song = videos[0];
+
+        await client.sendMessage(
+            m.chat,
+            { text: `🔎 Searching: *${song.title}*` },
+            { quoted: m }
+        );
+
+        const { data } = await axios.get(
+            "https://apiskeith.vercel.app/download/audio",
+            {
+                params: { url: song.url },
+                headers: { "User-Agent": "Mozilla/5.0" }
+            }
+        );
+
+        if (!data?.status || !data?.result) {
+            throw new Error("Failed to get mp3 link.");
+        }
+
+        await client.sendMessage(
+            m.chat,
+            { text: `🎵 Downloading: *${song.title}*` },
+            { quoted: m }
+        );
+
+        await client.sendMessage(
+            m.chat,
+            {
+                document: { url: data.result },
+                mimetype: "audio/mpeg",
+                fileName: `${song.title}.mp3`
+            },
+            { quoted: m }
+        );
+
+    } catch (error) {
+        console.error(error);
+        await client.sendMessage(
+            m.chat,
+            { text: "Download failed: " + error.message },
+            { quoted: m }
+        );
+    }
+
+    break;
+
+        
+case "gpt":
+  if (!args[0]) return reply("💡 Provide a prompt!");
+
+  try {
+    const prompt = args.join(" ");
+    const result = await gpt(prompt);
+
+    if (result?.response) {
+      reply(result.response);
+    } else {
+      reply("Invalid response from AI.");
+    }
+  } catch (err) {
+    reply("❌ Something went wrong...\n\n" + err.message);
+  }
+  break;
+case "darkgpt":
+  if (!args[0]) return reply("Provide a prompt for DarkGPT!");
+
+  try {
+    const prompt = args.join(" ");
+    const result = await venicechat(prompt);
+
+    if (result?.response) {
+      reply(result.response);
+    } else {
+      reply("⚠️ Invalid response from DarkGPT.");
+    }
+  } catch (err) {
+    reply("❌ DarkGPT failed...\n\n" + err.message);
+  }
+  break;
+
+        case "fullpp":
+        try {
+            const quotedImage = m.msg?.contextInfo?.quotedMessage?.imageMessage;
+            if (!quotedImage) {
+                await client.sendMessage(m.chat, { text: "❌ Quote an image to set as profile picture." }, { quoted: m });
+                break;
+            }
+
+           
+            const medis = await client.downloadAndSaveMediaMessage(quotedImage);
+
+           
+            const { img } = await generateProfilePicture(medis);
+
+          
+            await client.query({
+                tag: 'iq',
+                attrs: {
+                    to: S_WHATSAPP_NET,
+                    type: 'set',
+                    xmlns: 'w:profile:picture'
+                },
+                content: [
+                    {
+                        tag: 'picture',
+                        attrs: { type: 'image' },
+                        content: img
+                    }
+                ]
+            });
+
+            fs.unlinkSync(medis);
+            await client.sendMessage(m.chat, { text: "✅ Bot profile picture updated successfully!" }, { quoted: m });
+
+        } catch (error) {
+            await client.sendMessage(m.chat, { text: "❌ Error updating profile picture:\n" + error }, { quoted: m });
+        }
+
+  
+        break;
+
+         
+
+        case "help": 
+    reply(
+`📖 𝐌𝐢𝐧𝐢𝐁𝐨𝐭 𝐌𝐞𝐧𝐮 📖
+
+🔹 𝘵𝘦𝘴𝘵 / 𝘱𝘪𝘯𝘨 → Check if bot is active  
+🔹 𝘴𝘵𝘪𝘤𝘬𝘦𝘳 → Make sticker from pic or video 
+🔹 𝘵𝘰𝘪𝘮𝘨 → Convert sticker to image  
+🔹 𝘱𝘭𝘢𝘺 [song] → Download music  
+🤖 𝘨𝘱𝘵 [prompt] → Ask AI  
+🔥 𝘥𝘢𝘳𝘬𝘨𝘱𝘵 [prompt] → Uncensored AI  
+🔹 𝘧𝘶𝘭𝘭𝘱𝘱 (reply image) → Set full profile picture  
+🔹 𝘴𝘢𝘷𝘦 (reply status) → Save status 
+🔹 𝘶𝘩𝘮 / 𝘸𝘰𝘸 / 𝘯𝘪𝘤𝘦 / 🙂 (reply) → Save view-once media`
+    );
+    break;
+
+
+        
+      }
+    }
   } catch (error) {
     console.error(error);
   }
